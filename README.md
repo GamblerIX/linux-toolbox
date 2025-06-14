@@ -11,10 +11,10 @@
 
 ## 🚀 如何使用
 
-一键直接运行命令：
-    ```bash
-    curl -Ls https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/tool.sh | bash
-    ```
+一键直接运行：
+```bash
+curl -Ls https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/tool.sh | bash
+```
 
 ## 📄 开源许可
 
