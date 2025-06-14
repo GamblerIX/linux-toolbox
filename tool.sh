@@ -286,6 +286,47 @@ function core_system_management_menu() {
     esac
 }
 
+function network_speed_test() {
+    show_header
+    echo -e "${YELLOW}====== 网络速度测试 ======${NC}"
+    
+    if ! command -v speedtest-cli &> /dev/null; then
+        read -p "speedtest-cli 未安装, 是否立即安装? (y/N): " install_speedtest < /dev/tty
+        if [[ "$install_speedtest" =~ ^[Yy]$ ]]; then
+            if [ "$OS_TYPE" == "ubuntu" ] || [ "$OS_TYPE" == "debian" ]; then
+                apt-get update && apt-get install -y speedtest-cli
+            else
+                yum install -y speedtest-cli
+            fi
+        else
+            echo "  已跳过网络测试。"
+            read -p "按回车键返回..." < /dev/tty
+            network_and_security_menu
+            return
+        fi
+    fi
+
+    if command -v speedtest-cli &> /dev/null; then
+        echo "  正在测试网络, 请稍候..."
+        speedtest_output=$(speedtest-cli --simple 2>/dev/null)
+        if [ -n "$speedtest_output" ]; then
+            ping=$(echo "$speedtest_output" | grep "Ping" | awk -F': ' '{print $2}')
+            download=$(echo "$speedtest_output" | grep "Download" | awk -F': ' '{print $2}')
+            upload=$(echo "$speedtest_output" | grep "Upload" | awk -F': ' '{print $2}')
+            
+            printf "  %-12s %s\n" "延迟:" "$ping"
+            printf "  %-12s %s\n" "下载速度:" "$download"
+            printf "  %-12s %s\n" "上传速度:" "$upload"
+        else
+            echo -e "  ${RED}网络测试失败, 请检查网络连接。${NC}"
+        fi
+    fi
+
+    echo
+    read -p "按回车键返回..." < /dev/tty
+    network_and_security_menu
+}
+
 function display_logs() {
     local log_type=$1
     local log_file=""
