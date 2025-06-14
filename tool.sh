@@ -306,16 +306,11 @@ function _restore_official_yum() {
 }
 
 function install_singbox_yg() {
-    show_header
-    echo -e "${YELLOW}====== 正在安装 sing-box-yg 脚本 ======${NC}"
-    if [ -f "sb.sh" ]; then
-        bash sb.sh
-    else
-        bash <(curl -Ls https://raw.githubusercontent.com/yonggekkk/sing-box-yg/main/sb.sh)
-    fi
-    echo -e "${GREEN}脚本执行完毕。${NC}"
-    read -p "按回车键返回..." < /dev/tty
-    main_menu
+    echo -e "${GREEN}即将退出工具箱并开始安装 sing-box-yg 脚本...${NC}"
+    sleep 2
+    clear
+    local cmd="bash <(curl -Ls https://raw.githubusercontent.com/yonggekkk/sing-box-yg/main/sb.sh)"
+    exec bash -c "$cmd"
 }
 
 install_bt_lts() {
@@ -367,13 +362,13 @@ install_aa_latest() {
 }
 
 function install_toolbox() {
-    echo -e "${YELLOW}正在从 https://tools.gamblerix.me/tool.sh 下载并安装...${NC}"
+    echo -e "${YELLOW}正在从 https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/tool.sh 下载并安装...${NC}"
     if [ "$(id -u)" -ne 0 ]; then
         echo -e "${RED}此操作需要root权限。${NC}"
         return 1
     fi
     
-    if curl -sL https://tools.gamblerix.me/tool.sh -o /usr/local/bin/tool; then
+    if curl -sL https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/tool.sh -o /usr/local/bin/tool; then
         chmod +x /usr/local/bin/tool
         sed -i 's/\r$//' /usr/local/bin/tool
         mkdir -p "$TOOLBOX_DIR"
@@ -437,11 +432,11 @@ function select_user_interactive() {
         return 1
     fi
 
-    echo -e "${YELLOW}${prompt_message}${NC}" >&2
+    echo -e "${YELLOW}${prompt_message}${NC}"
     for i in "${!users[@]}"; do
-        echo -e "${GREEN}$((i+1)). ${users[$i]}${NC}" >&2
+        echo -e "${GREEN}$((i+1)). ${users[$i]}${NC}"
     done
-    echo -e "${GREEN}0. 取消${NC}" >&2
+    echo -e "${GREEN}0. 取消${NC}"
 
     read -p "请输入选项: " choice < /dev/tty
     
@@ -1123,7 +1118,12 @@ function main_menu() {
         4) panel_installation ;;
         5) install_singbox_yg ;;
         6) toolbox_management ;;
-        0) exit 0 ;;
+        0)
+            if [ "$INSTALLED" = "false" ]; then
+                echo -e "\n${YELLOW}一键运行命令: ${CYAN}curl -Ls https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/tool.sh | bash${NC}\n"
+            fi
+            exit 0
+            ;;
         *) echo -e "${RED}无效选项${NC}"; sleep 1; main_menu ;;
     esac
 }
