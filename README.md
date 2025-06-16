@@ -47,7 +47,7 @@ curl -Ls https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/tool.sh 
 
 #### 🧩 一键安装
 
-- **常用面板: 实现宝塔和1Panel面板的一键安装。
+- **常用面板**: 实现宝塔和1Panel面板的一键安装。
 - [**singbox-yg**](https://github.com/yonggekkk/sing-box-yg)
 - **工具箱本身**: 安装完成后，可以在ssh终端中任意路径下输入`tool`启动工具箱。
 
