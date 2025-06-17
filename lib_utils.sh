@@ -51,9 +51,9 @@ function update_config() {
     local key="$1"
     local value="$2"
     if grep -q "^${key}=" "$CONFIG_FILE"; then
-        sed -i "s/^${key}=.*/${key}=${value}/" "$CONFIG_FILE"
+        sed -i "s/^${key}=.*/${key}='${value}'/" "$CONFIG_FILE"
     else
-        echo "${key}=${value}" >> "$CONFIG_FILE"
+        echo "${key}='${value}'" >> "$CONFIG_FILE"
     fi
 }
 
@@ -61,24 +61,25 @@ function update_config() {
 function show_header() {
     clear
     echo -e "${PURPLE}"
-    echo -e "██╗     ██╗███╗   ██╗██╗   ██╗██╗  ██╗"
-    echo -e "██║     ██║████╗  ██║██║   ██║╚██╗██╔╝"
-    echo -e "██║     ██║██╔██╗ ██║██║   ██║ ╚███╔╝ "
-    echo -e "██║     ██║██║╚██╗██║██║   ██║ ██╔██╗ "
-    echo -e "███████╗██║██║ ╚████║╚██████╔╝██╔╝ ██╗"
-    echo -e "╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝"
+    echo '██╗     ██╗███╗   ██╗██╗   ██╗██╗  ██╗'
+    echo '██║     ██║████╗  ██║██║   ██║╚██╗██╔╝'
+    echo '██║     ██║██╔██╗ ██║██║   ██║ ╚███╔╝ '
+    echo '██║     ██║██║╚██╗██║██║   ██║ ██╔██╗ '
+    echo '███████╗██║██║ ╚████║╚██████╔╝██╔╝ ██╗'
+    echo '╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝'
     echo -e "${NC}"
     echo -e "${CYAN}╔═══════════════╗${NC}"
     echo -e "${GREEN}  Linux工具箱 ${NC}"
     echo -e "${CYAN}╚═══════════════╝${NC}"
     
     if [ "$INSTALLED" = "true" ]; then
-        echo -e "${BLUE}  运行模式: 已安装 (命令: tool) ${NC}"
+        echo -e "${BLUE}  运行模式: 已安装 (命令: tool)${NC}"
     else
-        echo -e "${BLUE}  运行模式: 临时运行 ${NC}"
+        echo -e "${BLUE}  运行模式: 临时运行${NC}"
     fi
     echo -e "${PURPLE}  检测到系统: ${OS_TYPE} ${OS_VERSION} (${OS_CODENAME})${NC}"
 }
+
 
 function press_any_key() {
     echo
@@ -95,6 +96,7 @@ function select_user_interactive() {
     fi
 
     echo -e "${YELLOW}${prompt_message}${NC}"
+    local i
     for i in "${!users[@]}"; do
         echo -e "${GREEN}$((i+1)). ${users[$i]}${NC}"
     done
@@ -158,8 +160,11 @@ function uninstall_toolbox() {
     else
         rm -f "$TOOL_EXECUTABLE"
         rm -rf "$TOOLBOX_INSTALL_DIR"
-        rm -rf "/usr/local/lib/linux-toolbox" # Hardcoded for safety
+        rm -rf "$TOOLBOX_LIB_DIR"
+        # 清除当前shell的命令路径缓存，这是关键！
+        hash -r
         echo -e "${GREEN}工具箱已成功卸载。${NC}"
+        echo -e "${YELLOW}为了确保所有更改生效，建议您关闭并重新打开终端。${NC}"
     fi
     read -p "按回车键退出..." < /dev/tty
     exit 0

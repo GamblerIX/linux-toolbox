@@ -44,7 +44,7 @@ function main_menu() {
         5) toolbox_management_menu ;;
         0)
             if [ "$INSTALLED" = "false" ]; then
-                echo -e "\n${YELLOW}一键安装命令: ${CYAN}curl -Ls https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh | bash${NC}\n"
+                echo -e "\n${YELLOW}一键运行命令: ${CYAN}curl -Ls https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh | bash${NC}\n"
             fi
             echo -e "${PURPLE}感谢使用，再见！${NC}"
             exit 0
