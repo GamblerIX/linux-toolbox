@@ -64,7 +64,7 @@ echo -e "${GREEN}权限设置完毕。${NC}"
 
 echo -e "\n${CYAN}--> 步骤 4: 初始化配置...${NC}"
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo "INSTALLED=true" > "$CONFIG_FILE"; echo "COUNTER=0" >> "$CONFIG_FILE"
+    echo "INSTALLED=true" > "$CONFIG_FILE"
 else
     if grep -q "^INSTALLED=" "$CONFIG_FILE"; then sed -i "s/^INSTALLED=.*/INSTALLED=true/" "$CONFIG_FILE"; else echo "INSTALLED=true" >> "$CONFIG_FILE"; fi
 fi

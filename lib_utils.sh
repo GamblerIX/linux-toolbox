@@ -43,7 +43,6 @@ function init_config() {
         source "$CONFIG_FILE"
     else
         echo "INSTALLED=false" > "$CONFIG_FILE"
-        echo "COUNTER=0" >> "$CONFIG_FILE"
     fi
 }
 
@@ -139,18 +138,29 @@ function install_toolbox() {
     echo -e "${YELLOW}正在从 GitHub 下载最新安装脚本并执行...${NC}"
     local install_script_url="https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh"
     
+    local install_output
     if command -v curl &>/dev/null; then
-        bash <(curl -sL "${install_script_url}")
+        install_output=$(bash <(curl -sL "${install_script_url}"))
     elif command -v wget &>/dev/null; then
-        bash <(wget -qO- "${install_script_url}")
+        install_output=$(bash <(wget -qO- "${install_script_url}"))
     else
         echo -e "${RED}错误: curl 或 wget 未安装，无法下载安装脚本。${NC}"
         press_any_key
+        toolbox_management_menu
+        return
     fi
-    
-    echo -e "${GREEN}操作完成。如果进行了安装或更新，请重新启动工具箱。${NC}"
-    press_any_key
-    main_menu
+
+    echo "$install_output"
+
+    if [[ "$install_output" == *"安装/更新 成功"* ]]; then
+        echo -e "${GREEN}更新成功！正在重启工具箱...${NC}"
+        sleep 2
+        exec tool
+    else
+        echo -e "${RED}更新似乎失败了，请检查上面的输出。${NC}"
+        press_any_key
+        toolbox_management_menu
+    fi
 }
 
 function uninstall_toolbox() {
@@ -161,7 +171,6 @@ function uninstall_toolbox() {
         rm -f "$TOOL_EXECUTABLE"
         rm -rf "$TOOLBOX_INSTALL_DIR"
         rm -rf "$TOOLBOX_LIB_DIR"
-        # 清除当前shell的命令路径缓存，这是关键！
         hash -r
         echo -e "${GREEN}工具箱已成功卸载。${NC}"
         echo -e "${YELLOW}为了确保所有更改生效，建议您关闭并重新打开终端。${NC}"

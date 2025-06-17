@@ -21,9 +21,6 @@ init_config
 
 # --- Main Menu Function ---
 function main_menu() {
-    ((COUNTER++))
-    update_config "COUNTER" "$COUNTER"
-
     show_header
     echo -e "${GREEN}1. 系统管理工具${NC}"
     echo -e "${GREEN}2. 网络与安全工具${NC}"
@@ -32,7 +29,6 @@ function main_menu() {
     echo -e "${GREEN}5. 工具箱管理${NC}"
     echo -e "${GREEN}0. 退出${NC}"
     echo -e "${CYAN}==============================================${NC}"
-    echo -e "${BLUE}  已运行 ${COUNTER} 次${NC}"
     
     read -p "请输入选项 [0-5]: " choice < /dev/tty
     
