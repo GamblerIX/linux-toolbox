@@ -17,7 +17,7 @@
 bash <(curl -sL https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh)
 ```
 
-或者使用 `wget`:
+或者（可选）:
 
 ```
 bash <(wget -qO- https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh)
@@ -70,7 +70,7 @@ bash <(wget -qO- https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/
 
 我们非常欢迎你为这个项目做出贡献！
 
-1. **报告 Issue**: 如果你发现任何 Bug 或有功能建议，请在 [Issues](https://github.com/GamblerIX/linux-toolbox/issues) 页面提交。
+**报告 Issue**: 如果你发现任何 Bug 或有功能建议，请在 [Issues](https://github.com/GamblerIX/linux-toolbox/issues) 页面提交。
 
 ## 📄 开源许可
 
