@@ -25,14 +25,14 @@ function main_menu() {
     update_config "COUNTER" "$COUNTER"
 
     show_header
-    echo -e "${GREEN}1. 系统管理工具 (System Management)${NC}"
-    echo -e "${GREEN}2. 网络与安全工具 (Network & Security)${NC}"
-    echo -e "${GREEN}3. 一键换源加速 (Software Source Mirror)${NC}"
-    echo -e "${GREEN}4. 一键安装程序 (One-Click Installer)${NC}"
-    echo -e "${GREEN}5. 工具箱管理 (Toolbox Management)${NC}"
-    echo -e "${GREEN}0. 退出 (Exit)${NC}"
+    echo -e "${GREEN}1. 系统管理工具${NC}"
+    echo -e "${GREEN}2. 网络与安全工具${NC}"
+    echo -e "${GREEN}3. 一键换源加速${NC}"
+    echo -e "${GREEN}4. 一键安装程序${NC}"
+    echo -e "${GREEN}5. 工具箱管理${NC}"
+    echo -e "${GREEN}0. 退出${NC}"
     echo -e "${CYAN}==============================================${NC}"
-    echo -e "${BLUE}  已运行 ${COUNTER} 次 | Made by GamblerIX ${NC}"
+    echo -e "${BLUE}  已运行 ${COUNTER} 次${NC}"
     
     read -p "请输入选项 [0-5]: " choice < /dev/tty
     
