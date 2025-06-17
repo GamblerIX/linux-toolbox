@@ -17,7 +17,7 @@
 bash <(curl -sL https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh)
 ```
 
-或者使用 `wget`:
+或者（可选）:
 
 ```
 bash <(wget -qO- https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh)
