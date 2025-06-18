@@ -16,7 +16,7 @@ function network_tools_menu() {
 
     read -p " 请输入选项 [0-5]: " choice < /dev/tty
     case $choice in
-        1) network_speed_test_menu ;; # MODIFIED: Call the new speed test menu
+        1) network_speed_test_menu ;;
         2) view_ssh_logs_menu ;;
         3) firewall_management_menu ;;
         4) bbr_management_menu ;;
@@ -26,7 +26,6 @@ function network_tools_menu() {
     esac
 }
 
-# NEW: Speed test menu to choose between different tools
 function network_speed_test_menu() {
     show_header
     echo -e "${YELLOW}====== 网络速度测试菜单 ======${NC}"
@@ -46,17 +45,14 @@ function network_speed_test_menu() {
     press_any_key; network_tools_menu
 }
 
-# RENAMED/MODIFIED: Original function wrapped for the menu
 function _run_speedtest_cli() {
     show_header
     echo -e "${YELLOW}====== 网络速度测试 (Speedtest-cli) ======${NC}"
     
-    # Check if speedtest-cli is installed
     if ! command -v speedtest-cli &> /dev/null; then
         read -p "speedtest-cli 未安装, 是否立即安装? (y/N): " install_speedtest < /dev/tty
         if [[ "$install_speedtest" =~ ^[Yy]$ ]]; then
             echo -e "${CYAN}正在安装 speedtest-cli...${NC}"
-            # Use appropriate package manager based on OS
             case "$OS_TYPE" in 
                 ubuntu|debian) apt-get update && apt-get install -y speedtest-cli ;; 
                 *) yum install -y speedtest-cli ;; 
@@ -66,10 +62,8 @@ function _run_speedtest_cli() {
         fi
     fi
 
-    # Run the test if command exists
     if command -v speedtest-cli &> /dev/null; then
         echo "正在使用 speedtest-cli 测试网络, 请稍候..."
-        # Execute and capture output
         speedtest_output=$(speedtest-cli --simple 2>/dev/null)
         if [ -n "$speedtest_output" ]; then
             local ping; ping=$(echo "$speedtest_output" | grep "Ping" | awk -F': ' '{print $2}')
@@ -84,7 +78,7 @@ function _run_speedtest_cli() {
     fi
 }
 
-# NEW: Function to run superbench.sh script
+# FIXED: Updated URL and added error checking
 function _run_superbench() {
     show_header
     echo -e "${YELLOW}====== 网络速度测试 (Superbench) ======${NC}"
@@ -92,18 +86,32 @@ function _run_superbench() {
     echo "测试将需要几分钟时间，请耐心等待。"
     sleep 3
 
-    # Check for curl or wget
     if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
         echo -e "${RED}错误: curl 和 wget 都未安装，无法执行此测试。${NC}"
         return
     fi
     
-    # Execute the script directly from the web
+    # Correct and current URL for superbench
+    local superbench_url="https://raw.githubusercontent.com/spiritLHLS/superbench/main/superbench.sh"
+    local script_content=""
+
+    # Download the script content into a variable
     if command -v curl &> /dev/null; then
-        bash <(curl -Lso- https://raw.githubusercontent.com/oldkingfun/superbench/main/superbench.sh)
+        script_content=$(curl -sL "${superbench_url}")
     else
-        bash <(wget -qO- https://raw.githubusercontent.com/oldkingfun/superbench/main/superbench.sh)
+        script_content=$(wget -qO- "${superbench_url}")
     fi
+
+    # Check if the download was successful and if it looks like a shell script
+    # It checks for the shebang line '#!/bin/bash' or '#!/bin/sh'
+    if [ -z "$script_content" ] || ! echo "$script_content" | grep -qE "^#\!/bin/(bash|sh)"; then
+        echo -e "${RED}错误: 下载 Superbench 脚本失败或内容不正确。${NC}"
+        echo -e "${YELLOW}请检查网络连接或脚本URL是否仍然有效: ${superbench_url}${NC}"
+        return
+    fi
+    
+    # Execute the script from the variable
+    bash <(echo "$script_content")
 }
 
 
@@ -139,7 +147,6 @@ function _display_ssh_logs() {
         "all") raw_logs=$(grep -a -E "$success_pattern|$failure_pattern" "$log_file");;
     esac
 
-    # FIX: Check if grep result is empty before proceeding
     if [ -z "$raw_logs" ]; then
         echo -e "${YELLOW}未找到相关日志记录。${NC}"; sleep 2; return
     fi
