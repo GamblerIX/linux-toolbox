@@ -18,17 +18,18 @@ FILES_TO_INSTALL=(
     "lib_network.sh" "lib_firewall.sh" "lib_installer.sh" "lib_superbench.sh"
 )
 
-# --- High-Intensity Bright & Bold Color Definitions ---
-RED=$'\e[1;91m'
-GREEN=$'\e[1;92m'
-YELLOW=$'\e[1;93m'
-CYAN=$'\e[1;96m'
-NC=$'\e[0m'
+# Color definitions will be sourced from the downloaded config.sh
+# A temporary set is defined here for the initial messages.
+RED_TEMP=$'\e[1;91m'
+GREEN_TEMP=$'\e[1;92m'
+YELLOW_TEMP=$'\e[1;93m'
+CYAN_TEMP=$'\e[1;96m'
+NC_TEMP=$'\e[0m'
 
 function check_root_installer() {
     if [ "$(id -u)" -ne 0 ]; then
-        echo -e "${RED}错误: 此安装脚本需要 root 权限运行。${NC}"
-        echo -e "${YELLOW}请尝试: curl ... | sudo bash${NC}"
+        echo -e "${RED_TEMP}错误: 此安装脚本需要 root 权限运行。${NC_TEMP}"
+        echo -e "${YELLOW_TEMP}请尝试: curl ... | sudo bash${NC_TEMP}"
         exit 1
     fi
 }
@@ -42,22 +43,22 @@ function download_file() {
     elif command -v wget &>/dev/null; then
         wget -qO "${local_path}" "${base_url}/${remote_path}"
     else
-        echo -e "${RED}致命错误: curl 和 wget 都未安装。${NC}"; exit 1
+        echo -e "${RED_TEMP}致命错误: curl 和 wget 都未安装。${NC_TEMP}"; exit 1
     fi
     if [ ! -s "${local_path}" ]; then
-        echo -e "${RED}下载文件失败: ${remote_path}。${NC}"; exit 1
+        echo -e "${RED_TEMP}下载文件失败: ${remote_path}。${NC_TEMP}"; exit 1
     fi
 }
 
 # --- Main Installation Logic ---
-echo -e "${GREEN}===== 开始安装/更新 Linux 工具箱 =====${NC}"
+echo -e "${GREEN_TEMP}===== 开始安装/更新 Linux 工具箱 =====${NC_TEMP}"
 check_root_installer
 
-echo -e "${CYAN}--> 步骤 1: 创建目录...${NC}"
+echo -e "${CYAN_TEMP}--> 步骤 1: 创建目录...${NC_TEMP}"
 mkdir -p "${LIB_DIR}"; mkdir -p "${CONFIG_DIR}"
-echo -e "${GREEN}目录准备就绪。${NC}"
+echo -e "${GREEN_TEMP}目录准备就绪。${NC_TEMP}"
 
-echo -e "\n${CYAN}--> 步骤 2: 下载脚本文件...${NC}"
+echo -e "\n${CYAN_TEMP}--> 步骤 2: 下载脚本文件...${NC_TEMP}"
 for file in "${FILES_TO_INSTALL[@]}"; do
     if [[ "$file" == "tool.sh" ]]; then
         download_file "$file" "$TOOL_EXECUTABLE"
@@ -65,6 +66,9 @@ for file in "${FILES_TO_INSTALL[@]}"; do
         download_file "$file" "${LIB_DIR}/${file}"
     fi
 done
+
+# Source the newly downloaded global config to use the color variables
+source "${LIB_DIR}/config.sh"
 
 echo -e "\n${CYAN}--> 步骤 3: 设置文件权限...${NC}"
 chmod +x "$TOOL_EXECUTABLE"

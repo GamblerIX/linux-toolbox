@@ -1,8 +1,8 @@
-# Linux 工具箱 (linux-toolbox) 
+# Linux 工具箱 (linux-toolbox)
 
 这是一个模块化的 Linux 脚本工具箱，旨在作为宝塔面板的补充，同时提供清晰、可扩展的脚本框架。
 
-##  ✨ 项目亮点
+## ✨ 项目亮点
 
 - **完全模块化**: 代码被拆分为核心、库、配置等多个文件，逻辑清晰，易于维护和二次开发。
 - **轻量便捷**: 通过独立的 `install.sh` 一键安装，之后可在任意路径通过 `tool` 命令启动。
@@ -63,8 +63,8 @@ bash <(wget -qO- https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/
 
 #### 🧩 一键安装
 
-- **常用面板**: 宝塔、1Panel 等面板的一键安装。
-- **代理工具**: sing-box 等常用工具的快速部署。
+- **常用面板**: 宝塔、1Panel 面板的一键安装。
+- **代理工具**: sing-box 的快速部署。
 
 ## 🤝 如何贡献
 

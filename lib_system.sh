@@ -3,13 +3,7 @@
 
 # Linux Toolbox - System Management Library
 
-# --- High-Intensity Bright & Bold Color Definitions ---
-RED=$'\e[1;91m'
-GREEN=$'\e[1;92m'
-YELLOW=$'\e[1;93m'
-BLUE=$'\e[1;94m'
-CYAN=$'\e[1;96m'
-NC=$'\e[0m'
+# Note: Color variables (RED, GREEN, etc.) are sourced from the global config.sh
 
 function manage_tools_menu() {
     show_header

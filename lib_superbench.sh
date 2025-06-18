@@ -7,13 +7,9 @@
 # This library is integrated from a third-party superbench script.
 # It handles system info gathering, I/O tests, and network speed tests.
 #
+# Note: Color variables (RED, GREEN, etc.) are sourced from the global config.sh
 
 # --- Global Superbench Variables ---
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-SKYBLUE='\033[0;36m'
-PLAIN='\033[0m'
 BrowserUA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 GeekbenchTest='Y'
 LOG_FILE="./superbench.log"

@@ -3,12 +3,7 @@
 
 # Linux Toolbox - Firewall Library
 
-# --- High-Intensity Bright & Bold Color Definitions ---
-RED=$'\e[1;91m'
-GREEN=$'\e[1;92m'
-YELLOW=$'\e[1;93m'
-CYAN=$'\e[1;96m'
-NC=$'\e[0m'
+# Note: Color variables (RED, GREEN, etc.) are sourced from the global config.sh
 
 function get_active_firewall() {
     if systemctl is-active --quiet firewalld; then

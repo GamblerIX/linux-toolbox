@@ -3,19 +3,11 @@
 
 # Linux Toolbox - Main Script
 
-# --- High-Intensity Bright & Bold Color Definitions ---
-RED=$'\e[1;91m'
-GREEN=$'\e[1;92m'
-YELLOW=$'\e[1;93m'
-BLUE=$'\e[1;94m'
-PURPLE=$'\e[1;95m'
-CYAN=$'\e[1;96m'
-NC=$'\e[0m'
-
 # --- Global Variables ---
 TOOLBOX_LIB_DIR="/usr/local/lib/linux-toolbox"
 
 # --- Source Library Files ---
+# Source the global configuration first to make variables (like colors) available to all other libraries.
 source "${TOOLBOX_LIB_DIR}/config.sh"
 source "${TOOLBOX_LIB_DIR}/lib_utils.sh"
 source "${TOOLBOX_LIB_DIR}/lib_system.sh"
