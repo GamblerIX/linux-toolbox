@@ -3,15 +3,16 @@
 
 # Linux Toolbox - Configuration File
 
-# --- High-Intensity Bright Color Definitions ---
-# Using high-intensity codes (90-97) for maximum brightness and compatibility.
-RED='\033[91m'        # High-Intensity Red
-GREEN='\033[92m'      # High-Intensity Green
-YELLOW='\033[93m'     # High-Intensity Yellow
-BLUE='\033[94m'       # High-Intensity Blue
-PURPLE='\033[95m'     # High-Intensity Magenta
-CYAN='\033[96m'       # High-Intensity Cyan
-NC='\033[0m'          # No Color
+# --- High-Intensity Bright & Bold Color Definitions ---
+# Using a more robust syntax ($'\e[...]) with bold (1;) and high-intensity
+# codes (90-97) for maximum brightness and compatibility across terminals.
+RED=$'\e[1;91m'        # Bold High-Intensity Red
+GREEN=$'\e[1;92m'      # Bold High-Intensity Green
+YELLOW=$'\e[1;93m'     # Bold High-Intensity Yellow
+BLUE=$'\e[1;94m'       # Bold High-Intensity Blue
+PURPLE=$'\e[1;95m'     # Bold High-Intensity Magenta
+CYAN=$'\e[1;96m'       # Bold High-Intensity Cyan
+NC=$'\e[0m'          # No Color
 
 # --- Directory and File Paths ---
 TOOLBOX_INSTALL_DIR="/etc/linux-toolbox"
