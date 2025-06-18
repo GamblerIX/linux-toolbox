@@ -13,9 +13,10 @@ LIB_DIR="/usr/local/lib/linux-toolbox"
 CONFIG_DIR="/etc/linux-toolbox"
 CONFIG_FILE="$CONFIG_DIR/config.cfg"
 
+# ADDED lib_superbench.sh to the list
 FILES_TO_INSTALL=(
     "tool.sh" "config.sh" "lib_utils.sh" "lib_system.sh"
-    "lib_network.sh" "lib_firewall.sh" "lib_installer.sh"
+    "lib_network.sh" "lib_firewall.sh" "lib_installer.sh" "lib_superbench.sh"
 )
 
 # --- Helper Functions ---
@@ -55,18 +56,27 @@ echo -e "${GREEN}目录准备就绪。${NC}"
 
 echo -e "\n${CYAN}--> 步骤 2: 下载脚本文件...${NC}"
 for file in "${FILES_TO_INSTALL[@]}"; do
-    [[ "$file" == "tool.sh" ]] && download_file "$file" "$TOOL_EXECUTABLE" || download_file "$file" "${LIB_DIR}/${file}"
+    if [[ "$file" == "tool.sh" ]]; then
+        download_file "$file" "$TOOL_EXECUTABLE"
+    else
+        download_file "$file" "${LIB_DIR}/${file}"
+    fi
 done
 
 echo -e "\n${CYAN}--> 步骤 3: 设置文件权限...${NC}"
-chmod +x "$TOOL_EXECUTABLE"; chmod 644 ${LIB_DIR}/*
+chmod +x "$TOOL_EXECUTABLE"
+chmod 644 ${LIB_DIR}/*
 echo -e "${GREEN}权限设置完毕。${NC}"
 
 echo -e "\n${CYAN}--> 步骤 4: 初始化配置...${NC}"
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "INSTALLED=true" > "$CONFIG_FILE"
 else
-    if grep -q "^INSTALLED=" "$CONFIG_FILE"; then sed -i "s/^INSTALLED=.*/INSTALLED=true/" "$CONFIG_FILE"; else echo "INSTALLED=true" >> "$CONFIG_FILE"; fi
+    if grep -q "^INSTALLED=" "$CONFIG_FILE"; then
+        sed -i "s/^INSTALLED=.*/INSTALLED=true/" "$CONFIG_FILE"
+    else
+        echo "INSTALLED=true" >> "$CONFIG_FILE"
+    fi
 fi
 echo -e "${GREEN}配置初始化完成。${NC}"
 

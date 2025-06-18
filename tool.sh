@@ -13,6 +13,8 @@ source "${TOOLBOX_LIB_DIR}/lib_system.sh"
 source "${TOOLBOX_LIB_DIR}/lib_network.sh"
 source "${TOOLBOX_LIB_DIR}/lib_firewall.sh"
 source "${TOOLBOX_LIB_DIR}/lib_installer.sh"
+# ADDED the new superbench library
+source "${TOOLBOX_LIB_DIR}/lib_superbench.sh"
 
 # --- Main Logic ---
 check_root
