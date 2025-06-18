@@ -3,13 +3,14 @@
 
 # Linux Toolbox - Configuration File
 
-# --- Bright Color Definitions ---
-RED='\033[1;91m'      # Bright Red
-GREEN='\033[1;92m'    # Bright Green
-YELLOW='\033[1;93m'   # Bright Yellow
-BLUE='\033[1;94m'     # Bright Blue
-PURPLE='\033[1;95m'   # Bright Magenta
-CYAN='\033[1;96m'     # Bright Cyan
+# --- High-Intensity Bright Color Definitions ---
+# Using high-intensity codes (90-97) for maximum brightness and compatibility.
+RED='\033[91m'        # High-Intensity Red
+GREEN='\033[92m'      # High-Intensity Green
+YELLOW='\033[93m'     # High-Intensity Yellow
+BLUE='\033[94m'       # High-Intensity Blue
+PURPLE='\033[95m'     # High-Intensity Magenta
+CYAN='\033[96m'       # High-Intensity Cyan
 NC='\033[0m'          # No Color
 
 # --- Directory and File Paths ---
