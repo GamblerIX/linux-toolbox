@@ -78,11 +78,12 @@ function _run_speedtest_cli() {
     fi
 }
 
-# FIXED: Updated URL and added error checking
+# FIXED: More robust download and execution logic using a temp file.
 function _run_superbench() {
     show_header
     echo -e "${YELLOW}====== 网络速度测试 (Superbench) ======${NC}"
     echo -e "${CYAN}即将从网络下载并执行 Superbench.sh 脚本...${NC}"
+    # FIXED: Corrected the Chinese phrasing.
     echo "测试将需要几分钟时间，请耐心等待。"
     sleep 3
 
@@ -91,27 +92,37 @@ function _run_superbench() {
         return
     fi
     
-    # Correct and current URL for superbench
     local superbench_url="https://raw.githubusercontent.com/spiritLHLS/superbench/main/superbench.sh"
-    local script_content=""
+    # Use a temporary file in /tmp for robustness.
+    local temp_script="/tmp/superbench_$(date +%s).sh"
 
-    # Download the script content into a variable
+    # Ensure the temporary file is removed when the function exits.
+    trap "rm -f ${temp_script}" RETURN
+
+    echo -e "${BLUE}--> 正在下载脚本至 ${temp_script}...${NC}"
     if command -v curl &> /dev/null; then
-        script_content=$(curl -sL "${superbench_url}")
+        curl -sL "${superbench_url}" -o "${temp_script}"
     else
-        script_content=$(wget -qO- "${superbench_url}")
+        wget -qO "${temp_script}" "${superbench_url}"
     fi
 
-    # Check if the download was successful and if it looks like a shell script
-    # It checks for the shebang line '#!/bin/bash' or '#!/bin/sh'
-    if [ -z "$script_content" ] || ! echo "$script_content" | grep -qE "^#\!/bin/(bash|sh)"; then
+    # Enhanced check: Ensure the file was downloaded and is a valid shell script.
+    if [ ! -s "${temp_script}" ] || ! head -n 1 "${temp_script}" | grep -qE "^#\!/bin/(bash|sh)"; then
         echo -e "${RED}错误: 下载 Superbench 脚本失败或内容不正确。${NC}"
         echo -e "${YELLOW}请检查网络连接或脚本URL是否仍然有效: ${superbench_url}${NC}"
+        # Display the downloaded content for easy debugging.
+        if [ -f "${temp_script}" ]; then
+            echo -e "${CYAN}--- 下载到的文件内容如下 ---${NC}"
+            cat "${temp_script}"
+            echo -e "${CYAN}--------------------------${NC}"
+        fi
         return
     fi
     
-    # Execute the script from the variable
-    bash <(echo "$script_content")
+    echo -e "${GREEN}--> 下载成功，准备执行...${NC}"
+    # Make the script executable and run it.
+    chmod +x "${temp_script}"
+    bash "${temp_script}"
 }
 
 
