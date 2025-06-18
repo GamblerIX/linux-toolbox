@@ -13,14 +13,17 @@ LIB_DIR="/usr/local/lib/linux-toolbox"
 CONFIG_DIR="/etc/linux-toolbox"
 CONFIG_FILE="$CONFIG_DIR/config.cfg"
 
-# ADDED lib_superbench.sh to the list
 FILES_TO_INSTALL=(
     "tool.sh" "config.sh" "lib_utils.sh" "lib_system.sh"
     "lib_network.sh" "lib_firewall.sh" "lib_installer.sh" "lib_superbench.sh"
 )
 
-# --- Helper Functions ---
-RED='\033[1;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'; CYAN='\033[1;36m'; NC='\033[0m'
+# --- Helper Functions (with new bright colors) ---
+RED=$'\e[1;91m'
+GREEN=$'\e[1;92m'
+YELLOW=$'\e[1;93m'
+CYAN=$'\e[1;96m'
+NC=$'\e[0m'
 
 function check_root_installer() {
     if [ "$(id -u)" -ne 0 ]; then
@@ -84,5 +87,5 @@ echo -e "\n${GREEN}===========================================${NC}"
 echo -e "${GREEN}    Linux 工具箱 安装/更新 成功！   ${NC}"
 echo -e "${GREEN}===========================================${NC}"
 echo -e "${YELLOW}现在你可以通过输入以下命令来运行它:${NC}"
-echo -e "${CYAN}\n    tool\n${NC}"
+echo -e "${CYAN}\n tool\n${NC}"
 exit 0
