@@ -3,14 +3,14 @@
 
 # Linux Toolbox - Configuration File
 
-# --- Color Definitions ---
-RED='\033[1;31m'
-GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-PURPLE='\033[1;35m'
-CYAN='\033[1;36m'
-NC='\033[0m'
+# --- Bright Color Definitions ---
+RED='\033[1;91m'      # Bright Red
+GREEN='\033[1;92m'    # Bright Green
+YELLOW='\033[1;93m'   # Bright Yellow
+BLUE='\033[1;94m'     # Bright Blue
+PURPLE='\033[1;95m'   # Bright Magenta
+CYAN='\033[1;96m'     # Bright Cyan
+NC='\033[0m'          # No Color
 
 # --- Directory and File Paths ---
 TOOLBOX_INSTALL_DIR="/etc/linux-toolbox"
