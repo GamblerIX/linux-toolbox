@@ -3,6 +3,15 @@
 
 # Linux Toolbox - Utility Library
 
+# --- High-Intensity Bright & Bold Color Definitions ---
+RED=$'\e[1;91m'
+GREEN=$'\e[1;92m'
+YELLOW=$'\e[1;93m'
+BLUE=$'\e[1;94m'
+PURPLE=$'\e[1;95m'
+CYAN=$'\e[1;96m'
+NC=$'\e[0m'
+
 # --- Core System Checks ---
 function check_root() {
     if [ "$(id -u)" -ne 0 ]; then
@@ -42,6 +51,7 @@ function init_config() {
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
     else
+        # This will be created by install.sh now
         echo "INSTALLED=false" > "$CONFIG_FILE"
     fi
 }

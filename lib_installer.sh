@@ -3,6 +3,13 @@
 
 # Linux Toolbox - One-Click Installer Library
 
+# --- High-Intensity Bright & Bold Color Definitions ---
+RED=$'\e[1;91m'
+GREEN=$'\e[1;92m'
+YELLOW=$'\e[1;93m'
+CYAN=$'\e[1;96m'
+NC=$'\e[0m'
+
 function installer_menu() {
     show_header
     echo -e "${YELLOW}====== 一键安装程序 ======${NC}"

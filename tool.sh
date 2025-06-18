@@ -3,6 +3,15 @@
 
 # Linux Toolbox - Main Script
 
+# --- High-Intensity Bright & Bold Color Definitions ---
+RED=$'\e[1;91m'
+GREEN=$'\e[1;92m'
+YELLOW=$'\e[1;93m'
+BLUE=$'\e[1;94m'
+PURPLE=$'\e[1;95m'
+CYAN=$'\e[1;96m'
+NC=$'\e[0m'
+
 # --- Global Variables ---
 TOOLBOX_LIB_DIR="/usr/local/lib/linux-toolbox"
 
@@ -13,8 +22,7 @@ source "${TOOLBOX_LIB_DIR}/lib_system.sh"
 source "${TOOLBOX_LIB_DIR}/lib_network.sh"
 source "${TOOLBOX_LIB_DIR}/lib_firewall.sh"
 source "${TOOLBOX_LIB_DIR}/lib_installer.sh"
-# ADDED the new superbench library
-source "${TOOLBOX_LIB_DIR}/lib_superbench.sh"
+[ -f "${TOOLBOX_LIB_DIR}/lib_superbench.sh" ] && source "${TOOLBOX_LIB_DIR}/lib_superbench.sh"
 
 # --- Main Logic ---
 check_root
@@ -29,7 +37,7 @@ function main_menu() {
     echo -e "${GREEN}3. 一键换源加速${NC}"
     echo -e "${GREEN}4. 一键安装程序${NC}"
     echo -e "${GREEN}5. 工具箱管理${NC}"
-    echo -e "${GREEN}0. 退出${NC}"
+    echo -e "${RED}0. 退出${NC}"
     echo -e "${CYAN}==============================================${NC}"
     
     read -p "请输入选项 [0-5]: " choice < /dev/tty

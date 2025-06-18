@@ -3,6 +3,13 @@
 
 # Linux Toolbox - Network Library
 
+# --- High-Intensity Bright & Bold Color Definitions ---
+RED=$'\e[1;91m'
+GREEN=$'\e[1;92m'
+YELLOW=$'\e[1;93m'
+CYAN=$'\e[1;96m'
+NC=$'\e[0m'
+
 function network_tools_menu() {
     show_header
     echo -e "${YELLOW}====== 网络与安全工具 ======${NC}"
@@ -77,24 +84,18 @@ function _run_speedtest_cli() {
     fi
 }
 
-# FINAL FIX: This function now ONLY calls the local library function.
-# It performs NO network downloads for the script itself.
 function _run_superbench() {
     show_header
     echo -e "${YELLOW}====== 综合性能测试 (Superbench) ======${NC}"
     echo -e "${CYAN}即将执行本地集成的 Superbench 测试脚本...${NC}"
-    # FIXED: Corrected Chinese phrasing.
     echo "测试将需要几分钟时间，请耐心等待。"
     sleep 2
     
-    # Check if the function from lib_superbench.sh exists before calling
     if command -v run_superbench_test &> /dev/null; then
-        # Call the main function from the local library
         run_superbench_test
     else
         echo -e "${RED}错误: 未找到 'run_superbench_test' 函数。${NC}"
         echo -e "${YELLOW}请确保 lib_superbench.sh 已正确安装并被 tool.sh 加载。${NC}"
-        echo -e "${YELLOW}您可能需要重新运行安装脚本来获取最新的库文件。${NC}"
     fi
 }
 

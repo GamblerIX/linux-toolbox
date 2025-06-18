@@ -18,7 +18,7 @@ FILES_TO_INSTALL=(
     "lib_network.sh" "lib_firewall.sh" "lib_installer.sh" "lib_superbench.sh"
 )
 
-# --- Helper Functions (with new bright colors) ---
+# --- High-Intensity Bright & Bold Color Definitions ---
 RED=$'\e[1;91m'
 GREEN=$'\e[1;92m'
 YELLOW=$'\e[1;93m'
@@ -72,9 +72,26 @@ chmod 644 ${LIB_DIR}/*
 echo -e "${GREEN}权限设置完毕。${NC}"
 
 echo -e "\n${CYAN}--> 步骤 4: 初始化配置...${NC}"
+# This script does not use the config file for colors, but ensures it's set up.
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo "INSTALLED=true" > "$CONFIG_FILE"
+    # Create a new config file without colors if it doesn't exist
+    cat > "$CONFIG_FILE" << EOF
+# Linux Toolbox - Configuration File
+
+# --- Directory and File Paths ---
+TOOLBOX_INSTALL_DIR="/etc/linux-toolbox"
+CONFIG_FILE="\$TOOLBOX_INSTALL_DIR/config.cfg"
+TOOLBOX_LIB_DIR="/usr/local/lib/linux-toolbox"
+TOOL_EXECUTABLE="/usr/local/bin/tool"
+
+# --- Default Configuration Values ---
+INSTALLED=true
+OS_TYPE=""
+OS_CODENAME=""
+OS_VERSION=""
+EOF
 else
+    # Ensure INSTALLED is set to true in existing config
     if grep -q "^INSTALLED=" "$CONFIG_FILE"; then
         sed -i "s/^INSTALLED=.*/INSTALLED=true/" "$CONFIG_FILE"
     else
@@ -83,9 +100,10 @@ else
 fi
 echo -e "${GREEN}配置初始化完成。${NC}"
 
+
 echo -e "\n${GREEN}===========================================${NC}"
 echo -e "${GREEN}    Linux 工具箱 安装/更新 成功！   ${NC}"
 echo -e "${GREEN}===========================================${NC}"
 echo -e "${YELLOW}现在你可以通过输入以下命令来运行它:${NC}"
-echo -e "${CYAN}\n tool\n${NC}"
+echo -e "${CYAN}\n    tool\n${NC}"
 exit 0
