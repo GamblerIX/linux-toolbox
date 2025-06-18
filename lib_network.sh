@@ -30,7 +30,7 @@ function network_speed_test_menu() {
     show_header
     echo -e "${YELLOW}====== 网络速度测试菜单 ======${NC}"
     echo -e "${GREEN} 1. Speedtest-cli (经典模式)${NC}"
-    echo -e "${GREEN} 2. Superbench (推荐-综合测试脚本)${NC}"
+    echo -e "${GREEN} 2. Superbench (推荐-本地综合测试)${NC}"
     echo -e "${GREEN} 0. 返回上一级菜单${NC}"
     echo -e "${CYAN}==============================================${NC}"
     echo -e "${YELLOW}提示: Superbench会测试IO和到国内/国际多个节点的速度, 更全面。${NC}"
@@ -78,51 +78,21 @@ function _run_speedtest_cli() {
     fi
 }
 
-# FIXED: More robust download and execution logic using a temp file.
+# FINAL FIX: Call the local library function directly.
 function _run_superbench() {
     show_header
-    echo -e "${YELLOW}====== 网络速度测试 (Superbench) ======${NC}"
-    echo -e "${CYAN}即将从网络下载并执行 Superbench.sh 脚本...${NC}"
-    # FIXED: Corrected the Chinese phrasing.
+    echo -e "${YELLOW}====== 综合性能测试 (Superbench) ======${NC}"
+    echo -e "${CYAN}即将执行本地 Superbench 测试脚本...${NC}"
     echo "测试将需要几分钟时间，请耐心等待。"
-    sleep 3
-
-    if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
-        echo -e "${RED}错误: curl 和 wget 都未安装，无法执行此测试。${NC}"
-        return
-    fi
+    sleep 2
     
-    local superbench_url="https://raw.githubusercontent.com/spiritLHLS/superbench/main/superbench.sh"
-    # Use a temporary file in /tmp for robustness.
-    local temp_script="/tmp/superbench_$(date +%s).sh"
-
-    # Ensure the temporary file is removed when the function exits.
-    trap "rm -f ${temp_script}" RETURN
-
-    echo -e "${BLUE}--> 正在下载脚本至 ${temp_script}...${NC}"
-    if command -v curl &> /dev/null; then
-        curl -sL "${superbench_url}" -o "${temp_script}"
+    # Check if the function from the library exists before calling
+    if command -v run_superbench_test &> /dev/null; then
+        run_superbench_test
     else
-        wget -qO "${temp_script}" "${superbench_url}"
+        echo -e "${RED}错误: 未找到 'run_superbench_test' 函数。${NC}"
+        echo -e "${YELLOW}请确保 lib_superbench.sh 已正确安装并被 tool.sh 加载。${NC}"
     fi
-
-    # Enhanced check: Ensure the file was downloaded and is a valid shell script.
-    if [ ! -s "${temp_script}" ] || ! head -n 1 "${temp_script}" | grep -qE "^#\!/bin/(bash|sh)"; then
-        echo -e "${RED}错误: 下载 Superbench 脚本失败或内容不正确。${NC}"
-        echo -e "${YELLOW}请检查网络连接或脚本URL是否仍然有效: ${superbench_url}${NC}"
-        # Display the downloaded content for easy debugging.
-        if [ -f "${temp_script}" ]; then
-            echo -e "${CYAN}--- 下载到的文件内容如下 ---${NC}"
-            cat "${temp_script}"
-            echo -e "${CYAN}--------------------------${NC}"
-        fi
-        return
-    fi
-    
-    echo -e "${GREEN}--> 下载成功，准备执行...${NC}"
-    # Make the script executable and run it.
-    chmod +x "${temp_script}"
-    bash "${temp_script}"
 }
 
 
@@ -260,7 +230,7 @@ function _enable_bbr() {
 
 function _disable_bbr() {
     sed -i '/net.core.default_qdisc=fq/d' /etc/sysctl.conf
-    sed -i '/net.ipv4.tcp_congestion_control=bbr/d' /etc/sysctl.conf
+    sed -i '/net.ipv4.tcp_congestion_control/bbr/d' /etc/sysctl.conf
     sysctl -p >/dev/null 2>&1
     echo -e "${GREEN}BBR 已关闭，配置已从 /etc/sysctl.conf 移除。${NC}"
 }
