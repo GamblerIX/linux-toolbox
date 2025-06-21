@@ -14,13 +14,23 @@ function check_root() {
 }
 
 function detect_os() {
+    # Reset variables to ensure a clean slate
+    OS_TYPE=""
+    OS_VERSION=""
+    OS_CODENAME=""
+
     if [ -f /etc/os-release ]; then
         . /etc/os-release
+        
         OS_TYPE=${ID}
         OS_VERSION=${VERSION_ID}
-        if [ "${ID}" == "ubuntu" ] || [ "${ID}" == "debian" ]; then
-             OS_CODENAME=$(lsb_release -sc)
+        
+        if [ -n "${VERSION_CODENAME}" ]; then
+            OS_CODENAME=${VERSION_CODENAME}
+        elif command -v lsb_release &>/dev/null; then
+            OS_CODENAME=$(lsb_release -sc)
         fi
+
     elif [ -f /etc/redhat-release ]; then
         if grep -q "CentOS release 7" /etc/redhat-release; then
             OS_TYPE="centos"
@@ -28,15 +38,29 @@ function detect_os() {
         fi
     fi
 
+    # --- Final Validation ---
     case "${OS_TYPE}" in
         ubuntu|debian|centos)
+            if [ -z "$OS_TYPE" ] || [ -z "$OS_VERSION" ]; then
+                 echo -e "${RED}错误：无法确定操作系统或版本。脚本无法继续。${NC}"
+                 exit 1
+            fi
+            if [[ "$OS_TYPE" == "debian" || "$OS_TYPE" == "ubuntu" ]] && [ -z "$OS_CODENAME" ]; then
+                 echo -e "${RED}错误：无法确定 ${OS_TYPE} 的系统代号 (Codename)。脚本无法继续。${NC}"
+                 echo -e "${YELLOW}这在最小化安装的系统上很常见。请尝试安装 'lsb-release' 包后重试。${NC}"
+                 exit 1
+            fi
             ;;
         *)
-            echo -e "${RED}错误：此脚本目前仅支持 Ubuntu, Debian, CentOS 7+ 系统。${NC}"
+            if [ -n "$PRETTY_NAME" ]; then
+                 echo -e "${YELLOW}检测到的系统是: ${PRETTY_NAME}${NC}"
+            fi
+            echo -e "${RED}错误：此脚本目前仅支持 Ubuntu, Debian, CentOS 系统。${NC}"
             exit 1
             ;;
     esac
 }
+
 
 # --- Configuration Management ---
 function init_config() {
@@ -44,7 +68,6 @@ function init_config() {
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
     else
-        # This will be created by install.sh now
         echo "INSTALLED=false" > "$CONFIG_FILE"
     fi
 }
