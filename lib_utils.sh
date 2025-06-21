@@ -63,12 +63,13 @@ function detect_os() {
 
 # --- Configuration Management ---
 function init_config() {
-    mkdir -p "$TOOLBOX_INSTALL_DIR"
-    # Safely check for installed status without sourcing the entire config file,
-    # which prevents overwriting runtime-detected variables like OS_TYPE.
-    if [ -f "$CONFIG_FILE" ] && grep -q "INSTALLED=true" "$CONFIG_FILE"; then
+    # Determine 'installed' status by checking if the main executable exists at the standard path.
+    # This is a more reliable method and avoids sourcing the problematic config.cfg file,
+    # which was overwriting the runtime-detected OS variables.
+    if [ -f "/usr/local/bin/tool" ]; then
         INSTALLED=true
     fi
+    # No other action is needed. Directories are created by the installer.
 }
 
 function update_config() {
