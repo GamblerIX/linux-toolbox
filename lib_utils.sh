@@ -14,7 +14,6 @@ function check_root() {
 }
 
 function detect_os() {
-    # Reset variables to ensure a clean slate
     OS_TYPE=""
     OS_VERSION=""
     OS_CODENAME=""
@@ -65,10 +64,10 @@ function detect_os() {
 # --- Configuration Management ---
 function init_config() {
     mkdir -p "$TOOLBOX_INSTALL_DIR"
-    if [ -f "$CONFIG_FILE" ]; then
-        source "$CONFIG_FILE"
-    else
-        echo "INSTALLED=false" > "$CONFIG_FILE"
+    # Safely check for installed status without sourcing the entire config file,
+    # which prevents overwriting runtime-detected variables like OS_TYPE.
+    if [ -f "$CONFIG_FILE" ] && grep -q "INSTALLED=true" "$CONFIG_FILE"; then
+        INSTALLED=true
     fi
 }
 
