@@ -11,8 +11,8 @@ CONFIG_DIR="/etc/linux-toolbox"
 CONFIG_FILE="$CONFIG_DIR/config.cfg"
 
 FILES_TO_INSTALL=(
-    "tool.sh" "config.sh" "lib_utils.sh" "lib_system.sh"
-    "lib_network.sh" "lib_firewall.sh" "lib_installer.sh" "lib_superbench.sh"
+    "tool.sh" "config.sh" "lib_utils.sh" "lib_system.sh" "lib_ui.sh"
+    "lib_network.sh" "lib_firewall.sh" "lib_installer.sh" "lib_superbench.sh" "lib_install.sh"
 )
 
 RED_TEMP=$'\e[1;91m'

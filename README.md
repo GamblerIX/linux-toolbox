@@ -79,6 +79,46 @@ tool --doctor
 #### 🧩 软件安装
 宝塔面板、1Panel、sing-box等常用工具一键部署
 
+## 🔧 故障排除
+
+### 常见问题
+
+#### 1. "No such file or directory" 错误
+
+如果遇到类似以下错误：
+```
+/usr/local/bin/tool: line 17: /usr/local/lib/linux-toolbox/lib_ui.sh: No such file or directory
+```
+
+**解决方案：**
+
+方法一：使用修复脚本（推荐）
+```bash
+# 下载并运行修复脚本
+wget -O fix_installation.sh https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/fix_installation.sh
+sudo bash fix_installation.sh
+```
+
+方法二：重新安装
+```bash
+# 完全重新安装工具箱
+bash <(curl -sL https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh)
+```
+
+#### 2. 权限问题
+
+确保以root权限运行安装脚本：
+```bash
+sudo bash install.sh
+```
+
+#### 3. 网络连接问题
+
+如果下载失败，可以尝试：
+- 检查网络连接
+- 使用代理或更换DNS
+- 手动下载文件后本地安装
+
 ## 🤝 贡献
 
 欢迎提交 [Issues](https://github.com/GamblerIX/linux-toolbox/issues) 报告问题或建议功能。
