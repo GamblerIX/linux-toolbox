@@ -208,15 +208,15 @@ ltbx_clean_system() {
 ltbx_user_management_menu() {
     ltbx_show_header
     printf "${YELLOW}====== 用户管理 ======${NC}\n"
-    printf "${CYAN}┌──────────────────────────────────────────────┐${NC}\n"
-    printf "${CYAN}│ ${GREEN}1. 列出可登录用户${NC}    │ ${BLUE}查看系统中所有可登录用户${NC}  │\n"
-    printf "${CYAN}│ ${GREEN}2. 创建新用户${NC}        │ ${BLUE}添加新的系统用户账户${NC}     │\n"
-    printf "${CYAN}│ ${GREEN}3. 删除用户${NC}          │ ${BLUE}移除用户及其主目录${NC}      │\n"
-    printf "${CYAN}│ ${GREEN}4. 修改密码${NC}          │ ${BLUE}更改用户登录密码${NC}        │\n"
-    printf "${CYAN}│ ${GREEN}5. 查看用户组${NC}        │ ${BLUE}显示所有用户组信息${NC}      │\n"
-    printf "${CYAN}│ ${GREEN}6. 切换用户${NC}          │ ${BLUE}切换到其他用户身份${NC}      │\n"
-    printf "${CYAN}│ ${RED}0. 返回上一级${NC}        │ ${BLUE}返回系统管理菜单${NC}        │\n"
-    printf "${CYAN}└──────────────────────────────────────────────┘${NC}\n"
+    printf "${CYAN}┌────────────┐${NC}\n"
+    printf "  ${GREEN}1. 列出可登录用户${NC}\n"
+    printf "  ${GREEN}2. 创建新用户${NC}\n"
+    printf "  ${GREEN}3. 删除用户${NC}\n"
+    printf "  ${GREEN}4. 修改密码${NC}\n"
+    printf "  ${GREEN}5. 查看用户组${NC}\n"
+    printf "  ${GREEN}6. 切换用户${NC}\n"
+    printf "  ${RED}0. 返回上一级${NC}\n"
+    printf "${CYAN}└────────────┘${NC}\n"
     printf "\n${YELLOW}请选择您要执行的操作：${NC}\n"
 
     if [ "${LTBX_NON_INTERACTIVE:-false}" = "true" ]; then
