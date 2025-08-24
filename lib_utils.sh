@@ -116,25 +116,42 @@ function select_user_interactive() {
     mapfile -t users < <(awk -F: '($1 == "root") || ($3 >= 1000 && $7 ~ /^\/bin\/(bash|sh|zsh|dash)$/)' /etc/passwd | cut -d: -f1 | sort)
     
     if [ ${#users[@]} -eq 0 ]; then
-        echo -e "${RED}未找到可操作的用户。${NC}" >&2
+        echo -e "${RED}错误：未找到可操作的用户账户。${NC}" >&2
+        echo -e "${YELLOW}提示：系统中可能没有普通用户或shell配置异常。${NC}" >&2
         return 1
     fi
 
     echo -e "${YELLOW}${prompt_message}${NC}"
+    echo -e "${CYAN}┌─────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│${NC} ${BLUE}可选用户列表：${NC}                    ${CYAN}│${NC}"
+    echo -e "${CYAN}├─────────────────────────────────────┤${NC}"
+    
     local i
     for i in "${!users[@]}"; do
-        echo -e "${GREEN}$((i+1)). ${users[$i]}${NC}"
+        local user_info=""
+        if [ "${users[$i]}" = "root" ]; then
+            user_info="${RED}(超级管理员)${NC}"
+        else
+            user_info="${GREEN}(普通用户)${NC}"
+        fi
+        printf "${CYAN}│${NC} ${GREEN}%2d.${NC} %-15s %s ${CYAN}│${NC}\n" "$((i+1))" "${users[$i]}" "$user_info"
     done
-    echo -e "${GREEN}0. 取消${NC}"
+    
+    echo -e "${CYAN}├─────────────────────────────────────┤${NC}"
+    echo -e "${CYAN}│${NC} ${RED} 0.${NC} 取消操作                      ${CYAN}│${NC}"
+    echo -e "${CYAN}└─────────────────────────────────────┘${NC}"
+    echo -e "${YELLOW}请选择要操作的用户：${NC}"
 
-    read -p "请输入选项: " choice < /dev/tty
+    read -p "输入用户编号 [0-${#users[@]}]: " choice < /dev/tty
     
     if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 0 ] || [ "$choice" -gt "${#users[@]}" ]; then
-        echo -e "${RED}无效选项${NC}" >&2 ; sleep 1
+        echo -e "${RED}错误：输入的选项无效，请输入 0-${#users[@]} 之间的数字。${NC}" >&2
+        sleep 2
         return 1
     fi
     
     if [ "$choice" -eq 0 ]; then
+        echo -e "${YELLOW}操作已取消。${NC}"
         return 1
     fi
     
