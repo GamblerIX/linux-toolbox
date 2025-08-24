@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-trap 'ltbx_error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "%s " "${FUNCNAME[@]}")' ERR
+trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${FUNCNAME[0]:-main}" "$?"' ERR
 
 TOOLBOX_INSTALL_DIR="/etc/linux-toolbox"
 CONFIG_FILE="$TOOLBOX_INSTALL_DIR/config.cfg"
@@ -41,17 +41,16 @@ LTBX_GITHUB_REPO="GamblerIX/linux-toolbox"
 LTBX_UPDATE_CHECK_INTERVAL=86400
 
 function ltbx_error_handler() {
-    local exit_code=$1
+    local source_file=$1
     local line_no=$2
-    local bash_lineno=$3
-    local last_command=$4
-    local func_stack=$5
+    local func_name=$3
+    local exit_code=$4
 
     printf "${RED}错误: 脚本执行失败${NC}\n" >&2
-    printf "${YELLOW}退出码: %s${NC}\n" "$exit_code" >&2
+    printf "${YELLOW}文件: %s${NC}\n" "$source_file" >&2
     printf "${YELLOW}行号: %s${NC}\n" "$line_no" >&2
-    printf "${YELLOW}命令: %s${NC}\n" "$last_command" >&2
-    printf "${YELLOW}函数栈: %s${NC}\n" "$func_stack" >&2
+    printf "${YELLOW}函数: %s${NC}\n" "$func_name" >&2
+    printf "${YELLOW}退出码: %s${NC}\n" "$exit_code" >&2
 
     if [[ -n "${LTBX_LOG_FILE:-}" ]] && [[ -w "$(dirname "${LTBX_LOG_FILE}")" ]]; then
         printf "[%s] ERROR: exit_code=%s line=%s command='%s' stack='%s'\n" \
