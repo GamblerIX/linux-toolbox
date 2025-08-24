@@ -76,7 +76,7 @@ function ltbx_doctor() {
 }
 
 LTBX_SUBCOMMAND=""
-while [[ $; do
+while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h)
             ltbx_show_help
