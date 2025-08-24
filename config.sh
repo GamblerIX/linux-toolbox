@@ -93,10 +93,3 @@ LTBX_BACKUP_DIR="${HOME}/.linux-toolbox-backup"
 
 LTBX_AUTO_UPDATE_CHECK="${LTBX_AUTO_UPDATE_CHECK:-true}"
 LTBX_UPDATE_PROMPT="${LTBX_UPDATE_PROMPT:-true}"
-]
-]
-]
-]
-]
-]
-]

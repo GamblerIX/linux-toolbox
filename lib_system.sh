@@ -434,7 +434,7 @@ ltbx_change_source_menu() {
 ltbx_change_mirror() {
     local provider="$1" mirror_url="" mirror_name="" confirm
     case "$provider" in
-        aliyun) mirror_url="http://mirrors.aliyun.com"; mirror_name="阿里云";;
+        aliyun) mirror_url="https://mirrors.aliyun.com"; mirror_name="阿里云";;
         tencent) mirror_url="http://mirrors.tencent.com"; mirror_name="腾讯云";;
         ustc) mirror_url="https://mirrors.ustc.edu.cn"; mirror_name="中科大";;
         *) printf "${RED}未知的源。${NC}\n"; return 1 ;;
@@ -470,11 +470,11 @@ ltbx_change_mirror() {
 ltbx_change_mirror_ubuntu() {
     cat > /etc/apt/sources.list <<EOF
 deb $1/ubuntu/ ${LTBX_OS_CODENAME:-focal} main restricted universe multiverse
-deb $1/ubuntu/ ${LTBX_OS_CODENAME:-focal}-security main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-security main restricted universe multiverse
 deb $1/ubuntu/ ${LTBX_OS_CODENAME:-focal}-updates main restricted universe multiverse
 deb $1/ubuntu/ ${LTBX_OS_CODENAME:-focal}-backports main restricted universe multiverse
 deb-src $1/ubuntu/ ${LTBX_OS_CODENAME:-focal} main restricted universe multiverse
-deb-src $1/ubuntu/ ${LTBX_OS_CODENAME:-focal}-security main restricted universe multiverse
+deb-src http://security.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-security main restricted universe multiverse
 deb-src $1/ubuntu/ ${LTBX_OS_CODENAME:-focal}-updates main restricted universe multiverse
 deb-src $1/ubuntu/ ${LTBX_OS_CODENAME:-focal}-backports main restricted universe multiverse
 EOF
@@ -542,11 +542,11 @@ ltbx_restore_official_mirror() {
         ubuntu)
             cat > /etc/apt/sources.list <<EOF
 deb http://archive.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal} main restricted universe multiverse
-deb http://archive.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-security main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-security main restricted universe multiverse
 deb http://archive.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-updates main restricted universe multiverse
 deb http://archive.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-backports main restricted universe multiverse
 deb-src http://archive.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal} main restricted universe multiverse
-deb-src http://archive.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-security main restricted universe multiverse
+deb-src http://security.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-security main restricted universe multiverse
 deb-src http://archive.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-updates main restricted universe multiverse
 deb-src http://archive.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-backports main restricted universe multiverse
 EOF
