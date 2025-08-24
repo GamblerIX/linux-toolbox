@@ -16,9 +16,9 @@ ltbx_network_tools_menu() {
     printf "${GREEN} 0. 返回主菜单${NC}\n"
     printf "${CYAN}==============================================${NC}\n"
 
-    if [ "${LTBX_NON_INTERACTIVE:-false}" = "true" ] || [ ! -t 0 ] || [ ! -t 1 ]; then
-        ltbx_log "非交互模式，返回主菜单" "info"
-        return
+    if [ "${LTBX_NON_INTERACTIVE:-false}" = "true" ]; then
+        ltbx_log "WARN" "非交互模式，跳过网络工具菜单"
+        return 1
     fi
 
     local choice
@@ -35,9 +35,9 @@ ltbx_network_tools_menu() {
 }
 
 ltbx_network_speed_test_menu() {
-    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
-        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping network speed test menu"
-        return 0
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
+        ltbx_log "WARN" "Non-interactive mode detected, skipping network speed test menu"
+        return 1
     fi
 
     local choice
@@ -111,9 +111,9 @@ ltbx_run_superbench() {
 }
 
 ltbx_view_ssh_logs_menu() {
-    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
-        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping SSH logs menu"
-        return 0
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
+        ltbx_log "WARN" "Non-interactive mode detected, skipping SSH logs menu"
+        return 1
     fi
 
     local choice
@@ -235,9 +235,9 @@ ltbx_list_used_ports() {
 }
 
 ltbx_bbr_management_menu() {
-    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
-        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping BBR management menu"
-        return 0
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
+        ltbx_log "WARN" "Non-interactive mode detected, skipping BBR management menu"
+        return 1
     fi
 
     local choice

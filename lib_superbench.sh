@@ -2,8 +2,8 @@
 
 BrowserUA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 GeekbenchTest='Y'
-LOG_FILE="./superbench.log"
-SPEED_LOG_FILE="./speedtest.log"
+LOG_FILE="/tmp/superbench_$(date +%s).log"
+SPEED_LOG_FILE="/tmp/speedtest_$(date +%s).log"
 
 ltbx_sb_about() {
     printf "\n"
@@ -66,11 +66,14 @@ ARCH="arm"
 
     if [ ! -e './nexttrace' ]; then
         printf " Installing NextTrace...\n"
+        local arch=$(uname -m)
         local nexttrace_url=""
-        if [[ "$ARCH" == "x64" ]]; then nexttrace_url="https://down.vpsaff.net/linux/nexttrace/nexttrace_linux_amd64";
-        elif [[ "$ARCH" == "x86" ]]; then nexttrace_url="https://down.vpsaff.net/linux/nexttrace/nexttrace_linux_386";
-        elif [[ "$ARCH" == "aarch64" ]]; then nexttrace_url="https://down.vpsaff.net/linux/nexttrace/nexttrace_linux_arm64";
-        fi
+        case "$arch" in
+            x86_64|amd64) nexttrace_url="https://down.vpsaff.net/linux/nexttrace/nexttrace_linux_amd64" ;;
+            i386|i686) nexttrace_url="https://down.vpsaff.net/linux/nexttrace/nexttrace_linux_386" ;;
+            aarch64|arm64) nexttrace_url="https://down.vpsaff.net/linux/nexttrace/nexttrace_linux_arm64" ;;
+            *) printf " Warning: Unsupported architecture: %s\n" "$arch" ;;
+        esac
         if [ -n "$nexttrace_url" ]; then
             wget --no-check-certificate -T 10 -qO nexttrace "$nexttrace_url" > /dev/null 2>&1
             chmod +x ./nexttrace
@@ -290,11 +293,13 @@ bj_time=$(date -u '+%Y-%m-%d %H:%M:%S')
 }
 
 ltbx_sb_cleanup() {
-    rm -f test_file_*
-    rm -rf speedtest*
-    rm -f nexttrace
-    rm -f "$LOG_FILE"
-    rm -f "$SPEED_LOG_FILE"
+    rm -f test_file_* 2>/dev/null || true
+    rm -rf speedtest* 2>/dev/null || true
+    rm -f nexttrace 2>/dev/null || true
+    rm -f "$LOG_FILE" 2>/dev/null || true
+    rm -f "$SPEED_LOG_FILE" 2>/dev/null || true
+    find /tmp -name "superbench_*.log" -type f -mtime +1 -delete 2>/dev/null || true
+    find /tmp -name "speedtest_*.log" -type f -mtime +1 -delete 2>/dev/null || true
 }
 
 run_superbench_test() {

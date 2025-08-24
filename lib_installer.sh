@@ -6,9 +6,9 @@ IFS=$'\n\t'
 trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${BASH_COMMAND}"' ERR
 
 function ltbx_installer_menu() {
-    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
-        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping installer menu"
-        return 0
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
+        ltbx_log "WARN" "Non-interactive mode detected, skipping installer menu"
+        return 1
     fi
 
     local choice

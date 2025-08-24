@@ -12,10 +12,8 @@ ltbx_press_any_key() {
         return 0
     fi
 
-    if [ "${LTBX_NON_INTERACTIVE:-false}" != "true" ] && [ -t 0 ] && [ -t 1 ]; then
-        read -p "按任意键继续..." -n 1 -r < /dev/tty
-        printf "\n"
-    fi
+    read -p "按任意键继续..." -n 1 -r < /dev/tty
+    printf "\n"
 }
 
 ltbx_select_user_interactive() {
@@ -23,12 +21,6 @@ ltbx_select_user_interactive() {
 
     if [ "${LTBX_NON_INTERACTIVE:-false}" = "true" ]; then
         printf "${YELLOW}非交互模式，返回root用户${NC}\n"
-        echo "root"
-        return 0
-    fi
-
-    if ! [ -t 0 ] || ! [ -t 1 ]; then
-        printf "${YELLOW}非TTY环境，返回root用户${NC}\n"
         echo "root"
         return 0
     fi
@@ -57,7 +49,7 @@ ltbx_select_user_interactive() {
     printf "${CYAN}└─────────────────────────────────────┘${NC}\n"
     printf "${YELLOW}请选择要操作的用户：${NC}\n"
 
-    read -p "输入用户编号 [0-${#users[@]}]: " choice < /dev/tty
+    read -p "输入用户编号 [0-${#users[@]}]: " choice
 
     if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 0 ] && [ "$choice" -lt "${#users[@]}" ]; then
         echo "${users[choice]}"
@@ -167,12 +159,6 @@ ltbx_confirm_action() {
         return $?
     fi
 
-    if [ ! -t 0 ] || [ ! -t 1 ]; then
-        printf "${YELLOW}非TTY环境，使用默认选择: %s${NC}\n" "$default"
-        [[ "$default" =~ ^[Yy]$ ]]
-        return $?
-    fi
-
     local prompt
     if [[ "$default" =~ ^[Yy]$ ]]; then
 prompt="(Y/n)"
@@ -182,7 +168,7 @@ prompt="(y/N)"
 
     while true; do
         printf "${YELLOW}%s %s: ${NC}" "$message" "$prompt"
-        read -r response < /dev/tty
+        read -r response
 
         if [ -z "$response" ]; then
 response="$default"

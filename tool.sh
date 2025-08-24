@@ -56,7 +56,7 @@ function ltbx_doctor() {
     printf "系统信息:\n"
     printf "  操作系统: %s %s (%s)\n" "${LTBX_OS_TYPE}" "${LTBX_OS_VERSION}" "${LTBX_OS_CODENAME}"
     printf "  用户权限: %s\n" "$(id -u)"
-    printf "  TTY状态: %s\n" "$([[ -t 0 ]] && echo '可用' || echo '不可用')"
+    printf "  TTY状态: %s\n" "已禁用检测"
 
     printf "\n依赖检查:\n"
     for cmd in curl wget sudo systemctl; do
@@ -125,6 +125,7 @@ fi
 function ltbx_read_input() {
     local prompt="$1"
     local default="${2:-}"
+    local input
 
     if [[ "${LTBX_NON_INTERACTIVE}" == "true" ]]; then
         if [[ -n "$default" ]]; then
@@ -136,12 +137,8 @@ function ltbx_read_input() {
         fi
     fi
 
-    if [[ -t 0 ]] && [[ -t 1 ]]; then
-        read -r -p "$prompt" < /dev/tty
-    else
-        ltbx_log "ERROR" "无TTY环境，请使用 --non-interactive 模式"
-        return 1
-    fi
+    read -r -p "$prompt" input
+    printf "%s" "$input"
 }
 
 function ltbx_main_menu() {
@@ -156,7 +153,7 @@ function ltbx_main_menu() {
         printf "%s==============================================%s\n" "${CYAN}" "${NC}"
 
         local choice
-        if ! choice=$(ltbx_read_input "请输入选项 [0-5]: "); then
+        if ! choice=$(ltbx_read_input "请输入选项 [0-5]: " "0"); then
             return 1
         fi
 

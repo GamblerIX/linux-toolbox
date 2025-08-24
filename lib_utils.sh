@@ -43,11 +43,29 @@ function ltbx_get_timestamp() {
 
 function ltbx_create_temp_file() {
     local prefix="${1:-ltbx}"
-    mktemp "/tmp/${prefix}.XXXXXX"
+    local temp_file
+    temp_file=$(mktemp "/tmp/${prefix}_$(date +%s).XXXXXX")
+    if [ -n "$temp_file" ] && [ -f "$temp_file" ]; then
+        echo "$temp_file"
+    else
+        ltbx_log "创建临时文件失败" "error"
+        return 1
+    fi
 }
 
 function ltbx_cleanup_temp_files() {
-    find /tmp -name "ltbx.*" -type f -mtime +1 -delete 2>/dev/null || true
+    local cleanup_patterns=(
+        "ltbx*"
+        "superbench_*.log"
+        "speedtest_*.log"
+        "linux-toolbox*"
+    )
+    
+    for pattern in "${cleanup_patterns[@]}"; do
+        find /tmp -name "$pattern" -type f -mtime +1 -delete 2>/dev/null || true
+    done
+    
+    find /tmp -name "ltbx.*" -type f -mtime +0 -size 0 -delete 2>/dev/null || true
 }
 
 function ltbx_get_system_info() {

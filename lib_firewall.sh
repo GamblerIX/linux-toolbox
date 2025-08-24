@@ -16,8 +16,8 @@ ltbx_get_active_firewall() {
 }
 
 ltbx_firewall_management_menu() {
-    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
-        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping firewall management menu"
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
+        ltbx_log "WARN" "Non-interactive mode detected, skipping firewall management menu"
         return 0
     fi
 
@@ -87,8 +87,8 @@ fw=$(ltbx_get_active_firewall)
 }
 
 ltbx_install_firewall_menu() {
-    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
-        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping firewall installation menu"
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
+        ltbx_log "WARN" "Non-interactive mode detected, skipping firewall installation menu"
         return 0
     fi
 
@@ -129,8 +129,8 @@ ltbx_install_firewall_menu() {
 }
 
 ltbx_switch_firewall_system() {
-    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
-        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping firewall system switch"
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
+        ltbx_log "WARN" "Non-interactive mode detected, skipping firewall system switch"
         return 0
     fi
 

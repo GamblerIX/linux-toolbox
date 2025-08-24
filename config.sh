@@ -11,7 +11,7 @@ TOOLBOX_LIB_DIR="/usr/local/lib/linux-toolbox"
 TOOL_EXECUTABLE="/usr/local/bin/tool"
 
 function ltbx_init_colors() {
-    if [[ -n "${NO_COLOR:-}" ]] || [[ "${TERM:-}" == "dumb" ]] || ! [[ -t 1 ]] || ! [[ -t 2 ]]; then
+    if [[ -n "${NO_COLOR:-}" ]] || [[ "${TERM:-}" == "dumb" ]]; then
 RED=""
 GREEN=""
 YELLOW=""

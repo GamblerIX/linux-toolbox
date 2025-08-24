@@ -59,7 +59,12 @@ ltbx_install_or_update_toolbox() {
     local install_script_url="https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh"
     local expected_sha256=""
     local temp_script
-temp_script=$(mktemp)
+    temp_script=$(ltbx_create_temp_file "install_script") || {
+        printf "${RED}错误: 无法创建临时文件${NC}\n"
+        ltbx_press_any_key
+        ltbx_toolbox_management_menu
+        return 1
+    }
 
     ltbx_log "开始下载安装脚本: $install_script_url" "info"
 
@@ -67,7 +72,7 @@ temp_script=$(mktemp)
         if ! curl -sL "${install_script_url}" -o "$temp_script"; then
             ltbx_log "curl下载失败" "error"
             printf "${RED}错误: 下载安装脚本失败${NC}\n"
-            rm -f "$temp_script"
+            rm -f "$temp_script" 2>/dev/null || true
             ltbx_press_any_key
             ltbx_toolbox_management_menu
             return 1
@@ -145,8 +150,8 @@ ltbx_uninstall_toolbox() {
         printf "${YELLOW}为了确保所有更改生效，建议您关闭并重新打开终端。${NC}\n"
     fi
 
-    if [ "${LTBX_NON_INTERACTIVE:-false}" != "true" ] && [ -t 0 ] && [ -t 1 ]; then
-        read -p "按回车键退出..." < /dev/tty
+    if [ "${LTBX_NON_INTERACTIVE:-false}" != "true" ]; then
+        read -p "按回车键退出..."
     fi
     exit 0
 }
@@ -194,8 +199,11 @@ last_check=$(cat "$last_check_file" 2>/dev/null || echo "0")
         fi
     fi
 
-    mkdir -p "$(dirname "$last_check_file")"
-    echo "$current_time" > "$last_check_file"
+    if mkdir -p "$(dirname "$last_check_file")" 2>/dev/null && echo "$current_time" > "$last_check_file" 2>/dev/null; then
+        : # 成功写入检查时间
+    else
+        ltbx_log "WARN" "无法写入更新检查文件，跳过时间记录"
+    fi
 
     if ! ltbx_check_version >/dev/null 2>&1; then
         printf "${YELLOW}提示：发现新版本可用，使用 'tool manage' 进行更新。${NC}\n"
