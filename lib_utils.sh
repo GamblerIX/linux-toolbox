@@ -1,223 +1,101 @@
 #!/bin/bash
-# -*- coding: utf-8 -*-
 
-# Linux Toolbox - Utility Library
+set -Eeuo pipefail
+IFS=$'\n\t'
 
-# Note: Color variables (RED, GREEN, etc.) are sourced from the global config.sh
+trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${FUNCNAME[0]:-main}" "$?"' ERR
 
-# --- Core System Checks ---
-function check_root() {
-    if [ "$(id -u)" -ne 0 ]; then
-        echo -e "${YELLOW}检测到非root用户，正尝试提权至root...${NC}"
-        exec sudo -i "$0" "$@"
-    fi
+function ltbx_get_random_string() {
+    local length=${1:-8}
+    tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c "$length"
 }
 
-function detect_os() {
-    OS_TYPE=""
-    OS_VERSION=""
-    OS_CODENAME=""
-
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        
-        OS_TYPE=${ID}
-        OS_VERSION=${VERSION_ID}
-        
-        if [ -n "${VERSION_CODENAME}" ]; then
-            OS_CODENAME=${VERSION_CODENAME}
-        elif command -v lsb_release &>/dev/null; then
-            OS_CODENAME=$(lsb_release -sc)
-        fi
-
-    elif [ -f /etc/redhat-release ]; then
-        if grep -q "CentOS release 7" /etc/redhat-release; then
-            OS_TYPE="centos"
-            OS_VERSION="7"
-        fi
-    fi
-
-    # --- Final Validation ---
-    case "${OS_TYPE}" in
-        ubuntu|debian|centos)
-            if [ -z "$OS_TYPE" ] || [ -z "$OS_VERSION" ]; then
-                 echo -e "${RED}错误：无法确定操作系统或版本。脚本无法继续。${NC}"
-                 exit 1
-            fi
-            if [[ "$OS_TYPE" == "debian" || "$OS_TYPE" == "ubuntu" ]] && [ -z "$OS_CODENAME" ]; then
-                 echo -e "${RED}错误：无法确定 ${OS_TYPE} 的系统代号 (Codename)。脚本无法继续。${NC}"
-                 echo -e "${YELLOW}这在最小化安装的系统上很常见。请尝试安装 'lsb-release' 包后重试。${NC}"
-                 exit 1
-            fi
-            ;;
-        *)
-            if [ -n "$PRETTY_NAME" ]; then
-                 echo -e "${YELLOW}检测到的系统是: ${PRETTY_NAME}${NC}"
-            fi
-            echo -e "${RED}错误：此脚本目前仅支持 Ubuntu, Debian, CentOS 系统。${NC}"
-            exit 1
-            ;;
-    esac
+function ltbx_is_command_available() {
+    command -v "$1" &>/dev/null
 }
 
-
-# --- Configuration Management ---
-function init_config() {
-    # Determine 'installed' status by checking if the main executable exists at the standard path.
-    # This is a more reliable method and avoids sourcing the problematic config.cfg file,
-    # which was overwriting the runtime-detected OS variables.
-    if [ -f "/usr/local/bin/tool" ]; then
-        INSTALLED=true
-    fi
-    # No other action is needed. Directories are created by the installer.
-}
-
-function update_config() {
-    local key="$1"
-    local value="$2"
-    if grep -q "^${key}=" "$CONFIG_FILE"; then
-        sed -i "s/^${key}=.*/${key}='${value}'/" "$CONFIG_FILE"
+function ltbx_get_file_size() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        stat -c%s "$file" 2>/dev/null || wc -c < "$file"
     else
-        echo "${key}='${value}'" >> "$CONFIG_FILE"
+        echo "0"
     fi
 }
 
-# --- User Interface Elements ---
-function show_header() {
-    clear
-    echo -e "${PURPLE}"
-    echo '██╗     ██╗███╗   ██╗██╗   ██╗██╗  ██╗'
-    echo '██║     ██║████╗  ██║██║   ██║╚██╗██╔╝'
-    echo '██║     ██║██╔██╗ ██║██║   ██║ ╚███╔╝ '
-    echo '██║     ██║██║╚██╗██║██║   ██║ ██╔██╗ '
-    echo '███████╗██║██║ ╚████║╚██████╔╝██╔╝ ██╗'
-    echo '╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝'
-    echo -e "${NC}"
-    echo -e "${CYAN}╔═══════════════╗${NC}"
-    echo -e "${GREEN}  Linux工具箱 ${NC}"
-    echo -e "${CYAN}╚═══════════════╝${NC}"
-    
-    if [ "$INSTALLED" = "true" ]; then
-        echo -e "${BLUE}  运行模式: 已安装 (命令: tool)${NC}"
-    else
-        echo -e "${BLUE}  运行模式: 临时运行${NC}"
-    fi
-    echo -e "${PURPLE}  检测到系统: ${OS_TYPE} ${OS_VERSION} (${OS_CODENAME})${NC}"
-}
+function ltbx_format_bytes() {
+    local bytes="$1"
+    local units=("B" "KB" "MB" "GB" "TB")
+    local unit=0
+    local size="$bytes"
 
-
-function press_any_key() {
-    echo
-    read -p "按回车键返回..." < /dev/tty
-}
-
-function select_user_interactive() {
-    local prompt_message="$1"
-    mapfile -t users < <(awk -F: '($1 == "root") || ($3 >= 1000 && $7 ~ /^\/bin\/(bash|sh|zsh|dash)$/)' /etc/passwd | cut -d: -f1 | sort)
-    
-    if [ ${#users[@]} -eq 0 ]; then
-        echo -e "${RED}错误：未找到可操作的用户账户。${NC}" >&2
-        echo -e "${YELLOW}提示：系统中可能没有普通用户或shell配置异常。${NC}" >&2
-        return 1
-    fi
-
-    echo -e "${YELLOW}${prompt_message}${NC}"
-    echo -e "${CYAN}┌─────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│${NC} ${BLUE}可选用户列表：${NC}                    ${CYAN}│${NC}"
-    echo -e "${CYAN}├─────────────────────────────────────┤${NC}"
-    
-    local i
-    for i in "${!users[@]}"; do
-        local user_info=""
-        if [ "${users[$i]}" = "root" ]; then
-            user_info="${RED}(超级管理员)${NC}"
-        else
-            user_info="${GREEN}(普通用户)${NC}"
-        fi
-        printf "${CYAN}│${NC} ${GREEN}%2d.${NC} %-15s %s ${CYAN}│${NC}\n" "$((i+1))" "${users[$i]}" "$user_info"
+    while [ "$size" -gt 1024 ] && [ "$unit" -lt 4 ]; do
+size=$((size / 1024))
+unit=$((unit + 1))
     done
-    
-    echo -e "${CYAN}├─────────────────────────────────────┤${NC}"
-    echo -e "${CYAN}│${NC} ${RED} 0.${NC} 取消操作                      ${CYAN}│${NC}"
-    echo -e "${CYAN}└─────────────────────────────────────┘${NC}"
-    echo -e "${YELLOW}请选择要操作的用户：${NC}"
 
-    read -p "输入用户编号 [0-${#users[@]}]: " choice < /dev/tty
-    
-    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 0 ] || [ "$choice" -gt "${#users[@]}" ]; then
-        echo -e "${RED}错误：输入的选项无效，请输入 0-${#users[@]} 之间的数字。${NC}" >&2
-        sleep 2
+    printf "%.1f %s" "$size" "${units[$unit]}"
+}
+
+function ltbx_get_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+function ltbx_create_temp_file() {
+    local prefix="${1:-ltbx}"
+    mktemp "/tmp/${prefix}.XXXXXX"
+}
+
+function ltbx_cleanup_temp_files() {
+    find /tmp -name "ltbx.*" -type f -mtime +1 -delete 2>/dev/null || true
+}
+
+function ltbx_get_system_info() {
+    printf "${CYAN}系统信息:${NC}\n"
+    printf "  操作系统: %s %s\n" "${LTBX_OS_TYPE:-unknown}" "${LTBX_OS_VERSION:-unknown}"
+    printf "  内核版本: %s\n" "$(uname -r)"
+    printf "  架构: %s\n" "$(uname -m)"
+    printf "  运行时间: %s\n" "$(uptime -p 2>/dev/null || uptime)"
+    printf "  负载: %s\n" "$(uptime | awk -F'load average:' '{print $2}')"
+}
+
+function ltbx_check_disk_space() {
+    local path="${1:-/}"
+    local threshold="${2:-90}"
+
+    local usage
+usage=$(df "$path" | awk 'NR==2 {print $5}' | sed 's/%//')
+
+    if [ "$usage" -gt "$threshold" ]; then
+        printf "${RED}警告: %s 磁盘使用率 %s%% 超过阈值 %s%%${NC}\n" "$path" "$usage" "$threshold"
+        return 1
+    else
+        printf "${GREEN}%s 磁盘使用率: %s%%${NC}\n" "$path" "$usage"
+        return 0
+    fi
+}
+
+function ltbx_check_memory_usage() {
+    local threshold="${1:-90}"
+
+    local total used available usage
+    if command -v free &>/dev/null; then
+        read -r total used available < <(free | awk 'NR==2{printf "%d %d %d", $2, $3, $7}')
+usage=$(( (used * 100) / total ))
+
+        printf "${BLUE}内存使用情况:${NC}\n"
+        printf "  总计: %s\n" "$(ltbx_format_bytes $((total * 1024)))"
+        printf "  已用: %s (%d%%)\n" "$(ltbx_format_bytes $((used * 1024)))" "$usage"
+        printf "  可用: %s\n" "$(ltbx_format_bytes $((available * 1024)))"
+
+        if [ "$usage" -gt "$threshold" ]; then
+            printf "${RED}警告: 内存使用率 %d%% 超过阈值 %d%%${NC}\n" "$usage" "$threshold"
+            return 1
+        fi
+    else
+        printf "${YELLOW}无法获取内存信息${NC}\n"
         return 1
     fi
-    
-    if [ "$choice" -eq 0 ]; then
-        echo -e "${YELLOW}操作已取消。${NC}"
-        return 1
-    fi
-    
-    echo "${users[$((choice-1))]}"
+
     return 0
-}
-
-# --- Toolbox Management ---
-function toolbox_management_menu() {
-    show_header
-    echo -e "${YELLOW}====== 工具箱管理 ======${NC}"
-    echo -e "${GREEN}1. 安装/更新 工具箱${NC}"
-    echo -e "${GREEN}2. 卸载工具箱${NC}"
-    echo -e "${GREEN}0. 返回主菜单${NC}"
-    echo -e "${CYAN}==============================================${NC}"
-    
-    read -p "请输入选项 [0-2]: " choice < /dev/tty
-    case $choice in
-        1) install_toolbox ;;
-        2) uninstall_toolbox ;;
-        0) main_menu ;;
-        *) echo -e "${RED}无效选项${NC}"; sleep 1; toolbox_management_menu ;;
-    esac
-}
-
-function install_toolbox() {
-    echo -e "${YELLOW}正在从 GitHub 下载最新安装脚本并执行...${NC}"
-    local install_script_url="https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh"
-    
-    local install_output
-    if command -v curl &>/dev/null; then
-        install_output=$(bash <(curl -sL "${install_script_url}"))
-    elif command -v wget &>/dev/null; then
-        install_output=$(bash <(wget -qO- "${install_script_url}"))
-    else
-        echo -e "${RED}错误: curl 或 wget 未安装，无法下载安装脚本。${NC}"
-        press_any_key
-        toolbox_management_menu
-        return
-    fi
-
-    echo "$install_output"
-
-    if [[ "$install_output" == *"安装/更新 成功"* ]]; then
-        echo -e "${GREEN}更新成功！正在重启工具箱...${NC}"
-        sleep 2
-        exec tool
-    else
-        echo -e "${RED}更新似乎失败了，请检查上面的输出。${NC}"
-        press_any_key
-        toolbox_management_menu
-    fi
-}
-
-function uninstall_toolbox() {
-    echo -e "${YELLOW}正在卸载工具箱...${NC}"
-    if [ ! -f "$TOOL_EXECUTABLE" ]; then
-        echo -e "${RED}工具箱未安装，无需卸载。${NC}"
-    else
-        rm -f "$TOOL_EXECUTABLE"
-        rm -rf "$TOOLBOX_INSTALL_DIR"
-        rm -rf "$TOOLBOX_LIB_DIR"
-        hash -r
-        echo -e "${GREEN}工具箱已成功卸载。${NC}"
-        echo -e "${YELLOW}为了确保所有更改生效，建议您关闭并重新打开终端。${NC}"
-    fi
-    read -p "按回车键退出..." < /dev/tty
-    exit 0
 }

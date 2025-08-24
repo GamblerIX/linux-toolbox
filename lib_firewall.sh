@@ -1,97 +1,186 @@
 #!/bin/bash
-# -*- coding: utf-8 -*-
 
-# Linux Toolbox - Firewall Library
+set -Eeuo pipefail
+IFS=$'\n\t'
 
-# Note: Color variables (RED, GREEN, etc.) are sourced from the global config.sh
+trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${BASH_COMMAND}"' ERR
 
-function get_active_firewall() {
-    if systemctl is-active --quiet firewalld; then
+ltbx_get_active_firewall() {
+    if systemctl is-active --quiet firewalld 2>/dev/null; then
         echo "firewalld"
-    elif command -v ufw &>/dev/null && ufw status | grep -q "Status: active"; then
+    elif command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
         echo "ufw"
     else
         echo "none"
     fi
 }
 
-function firewall_management_menu() {
-    local fw; fw=$(get_active_firewall)
-    if [ "$fw" == "none" ]; then install_firewall_menu; return; fi
-    
-    show_header
-    echo -e "${YELLOW}====== 防火墙管理 (当前: ${fw}) ======${NC}"
-    echo -e "${GREEN}1. 查看状态和规则${NC}"; echo -e "${GREEN}2. 开放端口${NC}"
-    echo -e "${GREEN}3. 关闭端口${NC}"; echo -e "${GREEN}4. 启用/禁用防火墙${NC}"
-    echo -e "${GREEN}5. 切换防火墙系统${NC}"; echo -e "${GREEN}0. 返回上一级菜单${NC}"
-    echo -e "${CYAN}==============================================${NC}"
-    
+ltbx_firewall_management_menu() {
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
+        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping firewall management menu"
+        return 0
+    fi
+
+    local fw choice
+fw=$(ltbx_get_active_firewall)
+    if [[ "$fw" == "none" ]]; then
+        ltbx_install_firewall_menu
+        return
+    fi
+
+    ltbx_show_header
+    printf "${YELLOW}====== 防火墙管理 (当前: ${fw}) ======${NC}\n"
+    printf "${GREEN}1. 查看状态和规则${NC}\n"
+    printf "${GREEN}2. 开放端口${NC}\n"
+    printf "${GREEN}3. 关闭端口${NC}\n"
+    printf "${GREEN}4. 启用/禁用防火墙${NC}\n"
+    printf "${GREEN}5. 切换防火墙系统${NC}\n"
+    printf "${GREEN}0. 返回上一级菜单${NC}\n"
+    printf "${CYAN}==============================================${NC}\n"
+
     read -p "请输入选项 [0-5]: " choice < /dev/tty
     case $choice in
-        1) if [ "$fw" == "firewalld" ]; then firewall-cmd --list-all; elif [ "$fw" == "ufw" ]; then ufw status verbose; fi ;;
-        2) read -p "端口号: " port; read -p "协议(tcp/udp): " proto
-           if [ "$fw" == "firewalld" ]; then firewall-cmd --permanent --add-port=${port}/${proto}; firewall-cmd --reload; elif [ "$fw" == "ufw" ]; then ufw allow ${port}/${proto}; fi ;;
-        3) read -p "端口号: " port; read -p "协议(tcp/udp): " proto
-           if [ "$fw" == "firewalld" ]; then firewall-cmd --permanent --remove-port=${port}/${proto}; firewall-cmd --reload; elif [ "$fw" == "ufw" ]; then ufw delete allow ${port}/${proto}; fi ;;
-        4) if [ "$fw" == "firewalld" ]; then if systemctl is-active --quiet firewalld; then systemctl disable --now firewalld && echo "已禁用"; else systemctl enable --now firewalld && echo "已启用"; fi
-           elif [ "$fw" == "ufw" ]; then if ufw status | grep -q "active"; then ufw disable && echo "已禁用"; else yes | ufw enable && echo "已启用"; fi; fi ;;
-        5) switch_firewall_system ;;
-        0) network_tools_menu; return ;;
-        *) echo -e "${RED}无效选项${NC}"; sleep 1 ;;
+        1) if [[ "$fw" == "firewalld" ]]; then
+               firewall-cmd --list-all 2>/dev/null || ltbx_log "ERROR" "Failed to list firewalld rules"
+           elif [[ "$fw" == "ufw" ]]; then
+               ufw status verbose 2>/dev/null || ltbx_log "ERROR" "Failed to show ufw status"
+           fi ;;
+        2) local port proto
+           read -p "端口号: " port < /dev/tty
+           read -p "协议(tcp/udp): " proto < /dev/tty
+           if [[ "$fw" == "firewalld" ]]; then
+               firewall-cmd --permanent --add-port="${port}/${proto}" 2>/dev/null && firewall-cmd --reload 2>/dev/null
+               printf "${GREEN}端口 ${port}/${proto} 已开放。${NC}\n"
+           elif [[ "$fw" == "ufw" ]]; then
+               ufw allow "${port}/${proto}" 2>/dev/null
+               printf "${GREEN}端口 ${port}/${proto} 已开放。${NC}\n"
+           fi ;;
+        3) local port proto
+           read -p "端口号: " port < /dev/tty
+           read -p "协议(tcp/udp): " proto < /dev/tty
+           if [[ "$fw" == "firewalld" ]]; then
+               firewall-cmd --permanent --remove-port="${port}/${proto}" 2>/dev/null && firewall-cmd --reload 2>/dev/null
+               printf "${GREEN}端口 ${port}/${proto} 已关闭。${NC}\n"
+           elif [[ "$fw" == "ufw" ]]; then
+               ufw delete allow "${port}/${proto}" 2>/dev/null
+               printf "${GREEN}端口 ${port}/${proto} 已关闭。${NC}\n"
+           fi ;;
+        4) if [[ "$fw" == "firewalld" ]]; then
+               if systemctl is-active --quiet firewalld 2>/dev/null; then
+                   systemctl disable --now firewalld 2>/dev/null && printf "${GREEN}防火墙已禁用${NC}\n"
+               else
+                   systemctl enable --now firewalld 2>/dev/null && printf "${GREEN}防火墙已启用${NC}\n"
+               fi
+           elif [[ "$fw" == "ufw" ]]; then
+               if ufw status 2>/dev/null | grep -q "active"; then
+                   ufw disable 2>/dev/null && printf "${GREEN}防火墙已禁用${NC}\n"
+               else
+                   yes | ufw enable 2>/dev/null && printf "${GREEN}防火墙已启用${NC}\n"
+               fi
+           fi ;;
+        5) ltbx_switch_firewall_system ;;
+        0) return 0 ;;
+        *) printf "${RED}无效选项${NC}\n"; sleep 1 ;;
     esac
-    press_any_key; firewall_management_menu
+    ltbx_press_any_key
+    ltbx_firewall_management_menu
 }
 
-function install_firewall_menu() {
-    show_header
-    echo -e "${YELLOW}====== 安装防火墙 ======${NC}"
-    echo -e "${YELLOW}未检测到活动的防火墙，请选择安装：${NC}"
-    
-    local install_cmd="yum"; [ "$OS_TYPE" == "centos" ] && [ "$OS_VERSION" != "7" ] && install_cmd="dnf"
-    if [[ "$OS_TYPE" == "ubuntu" || "$OS_TYPE" == "debian" ]]; then
-        echo -e "${GREEN}1. 安装 UFW (推荐)${NC}"; echo -e "${GREEN}2. 安装 Firewalld${NC}"
-    else
-        echo -e "${GREEN}1. 安装 Firewalld (推荐)${NC}"; echo -e "${GREEN}2. 安装 UFW${NC}"
+ltbx_install_firewall_menu() {
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
+        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping firewall installation menu"
+        return 0
     fi
-    echo -e "${GREEN}0. 返回${NC}"; read -p "请输入选项: " choice < /dev/tty
-    
+
+    local choice install_cmd="yum"
+    [[ "${LTBX_OS_TYPE:-}" == "centos" ]] && [[ "${LTBX_OS_VERSION:-}" != "7" ]] && install_cmd="dnf"
+
+    ltbx_show_header
+    printf "${YELLOW}====== 安装防火墙 ======${NC}\n"
+    printf "${YELLOW}未检测到活动的防火墙，请选择安装：${NC}\n"
+
+    if [[ "${LTBX_OS_TYPE:-}" == "ubuntu" || "${LTBX_OS_TYPE:-}" == "debian" ]]; then
+        printf "${GREEN}1. 安装 UFW (推荐)${NC}\n"
+        printf "${GREEN}2. 安装 Firewalld${NC}\n"
+    else
+        printf "${GREEN}1. 安装 Firewalld (推荐)${NC}\n"
+        printf "${GREEN}2. 安装 UFW${NC}\n"
+    fi
+    printf "${GREEN}0. 返回${NC}\n"
+    read -p "请输入选项: " choice < /dev/tty
+
     case $choice in
-        1) if [[ "$OS_TYPE" == "ubuntu" || "$OS_TYPE" == "debian" ]]; then apt update && apt install -y ufw; yes | ufw enable; else $install_cmd install -y firewalld; systemctl enable --now firewalld; fi ;;
-        2) if [[ "$OS_TYPE" == "ubuntu" || "$OS_TYPE" == "debian" ]]; then apt update && apt install -y firewalld; systemctl enable --now firewalld; else $install_cmd install -y ufw; yes | ufw enable; fi ;;
-        0) network_tools_menu; return ;;
-        *) echo -e "${RED}无效选项${NC}"; sleep 1; install_firewall_menu; return ;;
+        1) if [[ "${LTBX_OS_TYPE:-}" == "ubuntu" || "${LTBX_OS_TYPE:-}" == "debian" ]]; then
+               apt update 2>/dev/null && apt install -y ufw 2>/dev/null && yes | ufw enable 2>/dev/null
+           else
+               $install_cmd install -y firewalld 2>/dev/null && systemctl enable --now firewalld 2>/dev/null
+           fi ;;
+        2) if [[ "${LTBX_OS_TYPE:-}" == "ubuntu" || "${LTBX_OS_TYPE:-}" == "debian" ]]; then
+               apt update 2>/dev/null && apt install -y firewalld 2>/dev/null && systemctl enable --now firewalld 2>/dev/null
+           else
+               $install_cmd install -y ufw 2>/dev/null && yes | ufw enable 2>/dev/null
+           fi ;;
+        0) return 0 ;;
+        *) printf "${RED}无效选项${NC}\n"; sleep 1; ltbx_install_firewall_menu; return ;;
     esac
-    echo -e "${GREEN}安装并启用成功。${NC}"; press_any_key; firewall_management_menu
+    printf "${GREEN}安装并启用成功。${NC}\n"
+    ltbx_press_any_key
+    ltbx_firewall_management_menu
 }
 
-function switch_firewall_system() {
-    show_header
-    echo -e "${YELLOW}====== 切换防火墙系统 ======${NC}"
-    echo -e "${RED}警告：这将停用当前防火墙并安装启用新的，可能导致规则丢失！${NC}"
-    
-    local install_cmd="yum"; [ "$OS_TYPE" == "centos" ] && [ "$OS_VERSION" != "7" ] && install_cmd="dnf"
-    if [[ "$OS_TYPE" == "ubuntu" || "$OS_TYPE" == "debian" ]]; then
-        echo -e "${GREEN}1. 切换到 firewalld${NC}"; echo -e "${GREEN}2. 切换到 ufw (默认)${NC}"
-    else
-        echo -e "${GREEN}1. 切换到 firewalld (默认)${NC}"; echo -e "${GREEN}2. 切换到 ufw${NC}"
+ltbx_switch_firewall_system() {
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]] || ! [[ -t 0 ]]; then
+        ltbx_log "WARN" "Non-interactive mode or non-TTY environment detected, skipping firewall system switch"
+        return 0
     fi
-    echo -e "${GREEN}0. 取消${NC}"; read -p "请输入你的选择: " choice < /dev/tty
-    
+
+    local choice confirm install_cmd="yum"
+    [[ "${LTBX_OS_TYPE:-}" == "centos" ]] && [[ "${LTBX_OS_VERSION:-}" != "7" ]] && install_cmd="dnf"
+
+    ltbx_show_header
+    printf "${YELLOW}====== 切换防火墙系统 ======${NC}\n"
+    printf "${RED}警告：这将停用当前防火墙并安装启用新的，可能导致规则丢失！${NC}\n"
+
+    if [[ "${LTBX_OS_TYPE:-}" == "ubuntu" || "${LTBX_OS_TYPE:-}" == "debian" ]]; then
+        printf "${GREEN}1. 切换到 firewalld${NC}\n"
+        printf "${GREEN}2. 切换到 ufw (默认)${NC}\n"
+    else
+        printf "${GREEN}1. 切换到 firewalld (默认)${NC}\n"
+        printf "${GREEN}2. 切换到 ufw${NC}\n"
+    fi
+    printf "${GREEN}0. 取消${NC}\n"
+    read -p "请输入你的选择: " choice < /dev/tty
+
     case $choice in
         1) read -p "确定切换到 firewalld? (y/N): " confirm < /dev/tty
            if [[ "$confirm" =~ ^[Yy]$ ]]; then
                command -v ufw &>/dev/null && ufw disable &>/dev/null
-               command -v firewall-cmd &>/dev/null || { if [[ "$OS_TYPE" == "ubuntu" || "$OS_TYPE" == "debian" ]]; then apt install -y firewalld; else $install_cmd install -y firewalld; fi; }
-               systemctl enable --now firewalld; echo -e "${GREEN}已切换到 firewalld。${NC}"
+               command -v firewall-cmd &>/dev/null || {
+                   if [[ "${LTBX_OS_TYPE:-}" == "ubuntu" || "${LTBX_OS_TYPE:-}" == "debian" ]]; then
+                       apt install -y firewalld 2>/dev/null
+                   else
+                       $install_cmd install -y firewalld 2>/dev/null
+                   fi
+               }
+               systemctl enable --now firewalld 2>/dev/null
+               printf "${GREEN}已切换到 firewalld。${NC}\n"
            fi ;;
         2) read -p "确定切换到 ufw? (y/N): " confirm < /dev/tty
            if [[ "$confirm" =~ ^[Yy]$ ]]; then
-               systemctl is-active --quiet firewalld && systemctl disable --now firewalld
-               command -v ufw &>/dev/null || { if [[ "$OS_TYPE" == "ubuntu" || "$OS_TYPE" == "debian" ]]; then apt install -y ufw; else $install_cmd install -y ufw; fi; }
-               yes | ufw enable; echo -e "${GREEN}已切换到 ufw。${NC}"
+               systemctl is-active --quiet firewalld 2>/dev/null && systemctl disable --now firewalld 2>/dev/null
+               command -v ufw &>/dev/null || {
+                   if [[ "${LTBX_OS_TYPE:-}" == "ubuntu" || "${LTBX_OS_TYPE:-}" == "debian" ]]; then
+                       apt install -y ufw 2>/dev/null
+                   else
+                       $install_cmd install -y ufw 2>/dev/null
+                   fi
+               }
+               yes | ufw enable 2>/dev/null
+               printf "${GREEN}已切换到 ufw。${NC}\n"
            fi ;;
-        0) firewall_management_menu; return ;;
-        *) echo -e "${RED}无效选项${NC}"; sleep 1 ;;
+        0) ltbx_firewall_management_menu; return ;;
+        *) printf "${RED}无效选项${NC}\n"; sleep 1 ;;
     esac
-    press_any_key; firewall_management_menu
+    ltbx_press_any_key
+    ltbx_firewall_management_menu
 }
