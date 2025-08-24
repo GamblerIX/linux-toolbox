@@ -69,18 +69,18 @@ ltbx_install_or_update_toolbox() {
     ltbx_log "开始下载安装脚本: $install_script_url" "info"
 
     if command -v curl &>/dev/null; then
-        if ! curl -sL "${install_script_url}" -o "$temp_script"; then
+        if ! timeout 30 curl -sL --connect-timeout 10 --max-time 60 "${install_script_url}" -o "$temp_script"; then
             ltbx_log "curl下载失败" "error"
-            printf "${RED}错误: 下载安装脚本失败${NC}\n"
+            printf "${RED}错误: 下载安装脚本失败（可能是网络超时）${NC}\n"
             rm -f "$temp_script" 2>/dev/null || true
             ltbx_press_any_key
             ltbx_toolbox_management_menu
             return 1
         fi
     elif command -v wget &>/dev/null; then
-        if ! wget -qO "$temp_script" "${install_script_url}"; then
+        if ! timeout 30 wget --timeout=10 --tries=3 -qO "$temp_script" "${install_script_url}"; then
             ltbx_log "wget下载失败" "error"
-            printf "${RED}错误: 下载安装脚本失败${NC}\n"
+            printf "${RED}错误: 下载安装脚本失败（可能是网络超时）${NC}\n"
             rm -f "$temp_script"
             ltbx_press_any_key
             ltbx_toolbox_management_menu
@@ -109,8 +109,22 @@ actual_sha256=$(sha256sum "$temp_script" | cut -d' ' -f1)
     fi
 
     local install_output
-install_output=$(bash "$temp_script" 2>&1)
-    local install_exit_code=$?
+    printf "${CYAN}正在执行安装脚本...${NC}\n"
+    if ! install_output=$(timeout 300 bash "$temp_script" 2>&1); then
+        local install_exit_code=$?
+        if [ $install_exit_code -eq 124 ]; then
+            ltbx_log "安装脚本执行超时" "error"
+            printf "${RED}错误: 安装脚本执行超时（超过5分钟）${NC}\n"
+        else
+            ltbx_log "安装脚本执行失败，退出码: $install_exit_code" "error"
+            printf "${RED}错误: 安装脚本执行失败${NC}\n"
+        fi
+        rm -f "$temp_script"
+        ltbx_press_any_key
+        ltbx_toolbox_management_menu
+        return 1
+    fi
+    local install_exit_code=0
 
     rm -f "$temp_script"
 
