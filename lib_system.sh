@@ -208,16 +208,16 @@ ltbx_clean_system() {
 ltbx_user_management_menu() {
     ltbx_show_header
     printf "${YELLOW}====== 用户管理 ======${NC}\n"
-    printf "${CYAN}┌─────────────────────────────────────────────┐${NC}\n"
-    printf "${CYAN}│${NC} ${GREEN}1.${NC} 列出可登录用户 ${BLUE}(查看系统中所有可登录用户)${NC} ${CYAN}│${NC}\n"
-    printf "${CYAN}│${NC} ${GREEN}2.${NC} 创建新用户     ${BLUE}(添加新的系统用户账户)${NC} ${CYAN}│${NC}\n"
-    printf "${CYAN}│${NC} ${GREEN}3.${NC} 删除用户       ${BLUE}(移除用户及其主目录)${NC}   ${CYAN}│${NC}\n"
-    printf "${CYAN}│${NC} ${GREEN}4.${NC} 修改密码       ${BLUE}(更改用户登录密码)${NC}     ${CYAN}│${NC}\n"
-    printf "${CYAN}│${NC} ${GREEN}5.${NC} 查看用户组     ${BLUE}(显示所有用户组信息)${NC}   ${CYAN}│${NC}\n"
-    printf "${CYAN}│${NC} ${GREEN}6.${NC} 切换用户       ${BLUE}(切换到其他用户身份)${NC}   ${CYAN}│${NC}\n"
-    printf "${CYAN}│${NC} ${RED}0.${NC} 返回上一级     ${BLUE}(返回系统管理菜单)${NC}     ${CYAN}│${NC}\n"
-    printf "${CYAN}└─────────────────────────────────────────────┘${NC}\n"
-    printf "${YELLOW}请选择您要执行的操作：${NC}\n"
+    printf "${CYAN}┌──────────────────────────────────────────────┐${NC}\n"
+    printf "${CYAN}│ ${GREEN}1. 列出可登录用户${NC}    │ ${BLUE}查看系统中所有可登录用户${NC}  │\n"
+    printf "${CYAN}│ ${GREEN}2. 创建新用户${NC}        │ ${BLUE}添加新的系统用户账户${NC}     │\n"
+    printf "${CYAN}│ ${GREEN}3. 删除用户${NC}          │ ${BLUE}移除用户及其主目录${NC}      │\n"
+    printf "${CYAN}│ ${GREEN}4. 修改密码${NC}          │ ${BLUE}更改用户登录密码${NC}        │\n"
+    printf "${CYAN}│ ${GREEN}5. 查看用户组${NC}        │ ${BLUE}显示所有用户组信息${NC}      │\n"
+    printf "${CYAN}│ ${GREEN}6. 切换用户${NC}          │ ${BLUE}切换到其他用户身份${NC}      │\n"
+    printf "${CYAN}│ ${RED}0. 返回上一级${NC}        │ ${BLUE}返回系统管理菜单${NC}        │\n"
+    printf "${CYAN}└──────────────────────────────────────────────┘${NC}\n"
+    printf "\n${YELLOW}请选择您要执行的操作：${NC}\n"
 
     if [ "${LTBX_NON_INTERACTIVE:-false}" = "true" ]; then
         ltbx_log "非交互模式，返回上级菜单" "info"
@@ -264,7 +264,7 @@ ltbx_user_management_menu() {
            echo -e "${CYAN}│${NC} ${BLUE}删除用户${NC}                        ${CYAN}│${NC}"
            echo -e "${CYAN}└─────────────────────────────────────┘${NC}"
            echo -e "${RED}警告：删除用户将同时删除其主目录和所有文件！${NC}"
-           user_to_delete=$(select_user_interactive "请选择要删除的用户:");
+           user_to_delete=$(ltbx_select_user_interactive "请选择要删除的用户:");
            if [[ -n "$user_to_delete" ]]; then
                if [[ "$user_to_delete" == "root" ]]; then
                    echo -e "${RED}✗ 安全限制：不能删除root超级管理员账户。${NC}"
@@ -293,7 +293,7 @@ ltbx_user_management_menu() {
            echo -e "${CYAN}│${NC} ${BLUE}修改用户密码${NC}                    ${CYAN}│${NC}"
            echo -e "${CYAN}└─────────────────────────────────────┘${NC}"
            echo -e "${YELLOW}提示：建议使用包含字母、数字和特殊字符的强密码${NC}"
-           user_to_modify=$(select_user_interactive "请选择要修改密码的用户:");
+           user_to_modify=$(ltbx_select_user_interactive "请选择要修改密码的用户:");
            if [[ -n "$user_to_modify" ]]; then
                echo -e "${YELLOW}正在为用户 ${GREEN}$user_to_modify${YELLOW} 设置新密码${NC}"
                echo -e "${BLUE}密码要求：建议至少8位，包含大小写字母、数字${NC}"
@@ -352,7 +352,7 @@ ltbx_user_management_menu() {
            echo -e "${CYAN}└─────────────────────────────────────┘${NC}"
            echo -e "${YELLOW}提示：切换后将进入目标用户的Shell环境${NC}"
            echo -e "${BLUE}使用 'exit' 命令可返回当前用户${NC}"
-           user_to_switch=$(select_user_interactive "请选择要切换的用户:");
+           user_to_switch=$(ltbx_select_user_interactive "请选择要切换的用户:");
            if [[ -n "$user_to_switch" ]]; then
                echo -e "${YELLOW}正在切换到用户 ${GREEN}$user_to_switch${YELLOW}...${NC}"
                echo -e "${BLUE}当前用户：${GREEN}$(whoami)${NC} → 目标用户：${GREEN}$user_to_switch${NC}"
