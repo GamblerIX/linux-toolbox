@@ -127,22 +127,22 @@ function ltbx_select_best_source() {
             source_name="Gitee"
             response_time="$gitee_response_time"
         fi
-        printf "  -> ${GREEN_TEMP}最优源选择: %s (延迟: %sms)${NC_TEMP}\n" "$source_name" "$response_time"
+        printf "  -> \e[1;92m最优源选择: %s (延迟: %sms)\e[0m\n" "$source_name" "$response_time"
     elif [ "$github_status" -eq 0 ]; then
         # 仅GitHub可用
         selected_url="$github_url"
         source_name="GitHub"
         response_time="$github_response_time"
-        printf "  -> ${YELLOW_TEMP}使用 GitHub 源 (延迟: %sms)${NC_TEMP}\n" "$response_time"
+        printf "  -> \e[1;93m使用 GitHub 源 (延迟: %sms)\e[0m\n" "$response_time"
     elif [ "$gitee_status" -eq 0 ]; then
         # 仅Gitee可用
         selected_url="$gitee_url"
         source_name="Gitee"
         response_time="$gitee_response_time"
-        printf "  -> ${YELLOW_TEMP}使用 Gitee 源 (延迟: %sms)${NC_TEMP}\n" "$response_time"
+        printf "  -> \e[1;93m使用 Gitee 源 (延迟: %sms)\e[0m\n" "$response_time"
     else
         # 两个源都不可用
-        printf "  -> ${RED_TEMP}错误: 所有源都不可用${NC_TEMP}\n" >&2
+        printf "  -> \e[1;91m错误: 所有源都不可用\e[0m\n" >&2
         return 1
     fi
     
@@ -170,7 +170,7 @@ function download_file() {
     local source_result
     source_result=$(ltbx_select_best_source "$github_url" "$timeout")
     if [ $? -ne 0 ]; then
-        printf "${RED_TEMP}源选择失败${NC_TEMP}\n" >&2
+        printf "\e[1;91m源选择失败\e[0m\n" >&2
         return 1
     fi
     
@@ -178,29 +178,29 @@ function download_file() {
     selected_url=$(echo "$source_result" | cut -d'|' -f1)
     source_name=$(echo "$source_result" | cut -d'|' -f2)
     
-    printf "${CYAN_TEMP}  -> 开始下载: %s${NC_TEMP}\n" "$(basename "$local_path")"
+    printf "\e[1;96m  -> 开始下载: %s\e[0m\n" "$(basename "$local_path")"
         # 使用选定的最优源进行下载
     if command -v curl >/dev/null 2>&1; then
         if curl -sL --connect-timeout 10 --max-time 60 "$selected_url" -o "$local_path"; then
-            printf "  -> ${GREEN_TEMP}✓ 使用 curl 从 %s 源下载成功${NC_TEMP}\n" "$source_name"
+            printf "  -> \e[1;92m✓ 使用 curl 从 %s 源下载成功\e[0m\n" "$source_name"
         else
-            printf "${RED_TEMP}  -> ✗ 使用 curl 从 %s 源下载失败${NC_TEMP}\n" "$source_name" >&2
+            printf "\e[1;91m  -> ✗ 使用 curl 从 %s 源下载失败\e[0m\n" "$source_name" >&2
             return 1
         fi
     elif command -v wget >/dev/null 2>&1; then
         if wget --timeout=10 --tries=3 -qO "$local_path" "$selected_url"; then
-            printf "  -> ${GREEN_TEMP}✓ 使用 wget 从 %s 源下载成功${NC_TEMP}\n" "$source_name"
+            printf "  -> \e[1;92m✓ 使用 wget 从 %s 源下载成功\e[0m\n" "$source_name"
         else
-            printf "${RED_TEMP}  -> ✗ 使用 wget 从 %s 源下载失败${NC_TEMP}\n" "$source_name" >&2
+            printf "\e[1;91m  -> ✗ 使用 wget 从 %s 源下载失败\e[0m\n" "$source_name" >&2
             return 1
         fi
     else
-        printf "${RED_TEMP}致命错误: curl 和 wget 都未安装${NC_TEMP}\n" >&2
+        printf "\e[1;91m致命错误: curl 和 wget 都未安装\e[0m\n" >&2
         return 1
     fi
     
     if [[ ! -s "$local_path" ]]; then
-        printf "${RED_TEMP}下载文件为空或失败: %s${NC_TEMP}\n" "$remote_path" >&2
+        printf "\e[1;91m下载文件为空或失败: %s\e[0m\n" "$remote_path" >&2
         rm -f "$local_path" 2>/dev/null || true
         return 1
     fi
