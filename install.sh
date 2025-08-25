@@ -68,7 +68,7 @@ function ltbx_test_url_response_time() {
     if command -v curl &>/dev/null; then
         if curl -s --connect-timeout "$timeout" --max-time "$timeout" -I "$url" >/dev/null 2>&1; then
             end_time=$(date +%s%3N 2>/dev/null || date +%s)
-            if [[ "$start_time" =~ [0-9]{13} ]] && [[ "$end_time" =~ [0-9]{13} ]]; then
+            if [[ ${#start_time} -eq 13 ]] && [[ ${#end_time} -eq 13 ]]; then
                 response_time=$(((end_time - start_time)))
                 echo "$response_time"
             else
@@ -83,7 +83,7 @@ function ltbx_test_url_response_time() {
     elif command -v wget &>/dev/null; then
         if wget --timeout="$timeout" --tries=1 -q --spider "$url" >/dev/null 2>&1; then
             end_time=$(date +%s%3N 2>/dev/null || date +%s)
-            if [[ "$start_time" =~ [0-9]{13} ]] && [[ "$end_time" =~ [0-9]{13} ]]; then
+            if [[ ${#start_time} -eq 13 ]] && [[ ${#end_time} -eq 13 ]]; then
                 response_time=$(((end_time - start_time)))
                 echo "$response_time"
             else
@@ -104,10 +104,8 @@ function ltbx_test_url_response_time() {
 
 function ltbx_select_best_source() {
     local github_url="$1"
-    local timeout="${2:-3}"
-    
-    local gitee_url
-    gitee_url=$(ltbx_convert_github_to_gitee "$github_url")
+    local gitee_url="$2"
+    local timeout="${3:-3}"
     
     printf "  -> 智能源选择: 检测最优下载源...\n" >&2
     
@@ -175,12 +173,14 @@ function download_file() {
     
     local base_url="https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/${BRANCH}"
     local github_url="${base_url}/${remote_path}"
-    
+    local gitee_url
+    gitee_url=$(ltbx_convert_github_to_gitee "$github_url")
+
     printf "  -> 正在下载 %s...\n" "$remote_path"
-    
+
     # 使用智能源选择
     local source_result
-    source_result=$(ltbx_select_best_source "$github_url" "$timeout")
+    source_result=$(ltbx_select_best_source "$github_url" "$gitee_url" "$timeout")
     if [ $? -ne 0 ]; then
         printf "\e[1;91m源选择失败\e[0m\n" >&2
         return 1
