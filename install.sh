@@ -51,28 +51,104 @@ function ltbx_test_url_response_time() {
     local timeout="${2:-3}"
     
     local start_time end_time response_time
-    start_time=$(date +%s)
+    start_time=$(date +%s%3N 2>/dev/null || date +%s)
     
     if command -v curl &>/dev/null; then
         if curl -s --connect-timeout "$timeout" --max-time "$timeout" -I "$url" >/dev/null 2>&1; then
-            end_time=$(date +%s)
-            response_time=$((end_time - start_time))
-            return "$response_time"
+            end_time=$(date +%s%3N 2>/dev/null || date +%s)
+            if [[ "$start_time" =~ [0-9]{13} ]] && [[ "$end_time" =~ [0-9]{13} ]]; then
+                response_time=$(((end_time - start_time)))
+                echo "$response_time"
+            else
+                response_time=$((end_time - start_time))
+                echo "${response_time}000"
+            fi
+            return 0
         else
-            return 255
+            echo "999999"
+            return 1
         fi
     elif command -v wget &>/dev/null; then
         if wget --timeout="$timeout" --tries=1 -q --spider "$url" >/dev/null 2>&1; then
-            end_time=$(date +%s)
-            response_time=$((end_time - start_time))
-            return "$response_time"
+            end_time=$(date +%s%3N 2>/dev/null || date +%s)
+            if [[ "$start_time" =~ [0-9]{13} ]] && [[ "$end_time" =~ [0-9]{13} ]]; then
+                response_time=$(((end_time - start_time)))
+                echo "$response_time"
+            else
+                response_time=$((end_time - start_time))
+                echo "${response_time}000"
+            fi
+            return 0
         else
-            return 255
+            echo "999999"
+            return 1
         fi
     else
         printf "${RED_TEMP}错误: curl 和 wget 都未安装${NC_TEMP}\n" >&2
-        return 255
+        echo "999999"
+        return 1
     fi
+}
+
+function ltbx_select_best_source() {
+    local github_url="$1"
+    local timeout="${2:-3}"
+    
+    local gitee_url
+    gitee_url=$(ltbx_convert_github_to_gitee "$github_url")
+    
+    printf "  -> 智能源选择: 检测最优下载源...\n"
+    
+    # 并行测试多个源的延迟
+    local github_response_time gitee_response_time
+    local github_status gitee_status
+    
+    # 测试GitHub源
+    printf "  -> 测试 GitHub 源延迟...\n"
+    github_response_time=$(ltbx_test_url_response_time "$github_url" "$timeout")
+    github_status=$?
+    
+    # 测试Gitee源
+    printf "  -> 测试 Gitee 源延迟...\n"
+    gitee_response_time=$(ltbx_test_url_response_time "$gitee_url" "$timeout")
+    gitee_status=$?
+    
+    # 智能选择最优源
+    local selected_url source_name response_time
+    
+    if [ "$github_status" -eq 0 ] && [ "$gitee_status" -eq 0 ]; then
+        # 两个源都可用，选择延迟更低的
+        if [ "$github_response_time" -le "$gitee_response_time" ]; then
+            selected_url="$github_url"
+            source_name="GitHub"
+            response_time="$github_response_time"
+        else
+            selected_url="$gitee_url"
+            source_name="Gitee"
+            response_time="$gitee_response_time"
+        fi
+        printf "  -> ${GREEN_TEMP}最优源选择: %s (延迟: %sms)${NC_TEMP}\n" "$source_name" "$response_time"
+    elif [ "$github_status" -eq 0 ]; then
+        # 仅GitHub可用
+        selected_url="$github_url"
+        source_name="GitHub"
+        response_time="$github_response_time"
+        printf "  -> ${YELLOW_TEMP}使用 GitHub 源 (延迟: %sms)${NC_TEMP}\n" "$response_time"
+    elif [ "$gitee_status" -eq 0 ]; then
+        # 仅Gitee可用
+        selected_url="$gitee_url"
+        source_name="Gitee"
+        response_time="$gitee_response_time"
+        printf "  -> ${YELLOW_TEMP}使用 Gitee 源 (延迟: %sms)${NC_TEMP}\n" "$response_time"
+    else
+        # 两个源都不可用
+        printf "  -> ${RED_TEMP}错误: 所有源都不可用${NC_TEMP}\n" >&2
+        return 1
+    fi
+    
+    # 返回选择的URL和源名称
+    echo "$selected_url|$source_name"
+    return 0
 }
 
 function download_file() {
@@ -87,64 +163,36 @@ function download_file() {
     
     local base_url="https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/${BRANCH}"
     local github_url="${base_url}/${remote_path}"
-    local gitee_url
-    gitee_url=$(ltbx_convert_github_to_gitee "$github_url")
     
     printf "  -> 正在下载 %s...\n" "$remote_path"
-    printf "  -> 测试 GitHub 源响应时间...\n"
     
-    local github_response_time
-    ltbx_test_url_response_time "$github_url" "$timeout"
-    github_response_time=$?
-    
-    local selected_url="$github_url"
-    local source_name="GitHub"
-    
-    if [ "$github_response_time" -eq 255 ] || [ "$github_response_time" -gt "$timeout" ]; then
-        printf "  -> GitHub 源超时或失败，切换到 Gitee 源\n"
-        selected_url="$gitee_url"
-        source_name="Gitee"
-    else
-        printf "  -> GitHub 源响应时间 ${github_response_time}s，使用 GitHub 源\n"
+    # 使用智能源选择
+    local source_result
+    source_result=$(ltbx_select_best_source "$github_url" "$timeout")
+    if [ $? -ne 0 ]; then
+        printf "${RED_TEMP}源选择失败${NC_TEMP}\n" >&2
+        return 1
     fi
     
-    printf "${CYAN_TEMP}  -> 使用 %s 源下载: %s${NC_TEMP}\n" "$source_name" "$(basename "$local_path")"
+    local selected_url source_name
+    selected_url=$(echo "$source_result" | cut -d'|' -f1)
+    source_name=$(echo "$source_result" | cut -d'|' -f2)
     
+    printf "${CYAN_TEMP}  -> 开始下载: %s${NC_TEMP}\n" "$(basename "$local_path")"
+        # 使用选定的最优源进行下载
     if command -v curl >/dev/null 2>&1; then
         if curl -sL --connect-timeout 10 --max-time 60 "$selected_url" -o "$local_path"; then
-            printf "  -> 使用 curl 从 %s 源下载成功\n" "$source_name"
+            printf "  -> ${GREEN_TEMP}✓ 使用 curl 从 %s 源下载成功${NC_TEMP}\n" "$source_name"
         else
-            printf "${RED_TEMP}  -> 使用 curl 从 %s 源下载失败${NC_TEMP}\n" "$source_name" >&2
-            if [ "$source_name" = "GitHub" ]; then
-                printf "  -> 重试 Gitee 源...\n"
-                if curl -sL --connect-timeout 10 --max-time 60 "$gitee_url" -o "$local_path"; then
-                    printf "${YELLOW_TEMP}  -> 已切换到 Gitee 源完成下载${NC_TEMP}\n"
-                else
-                    printf "${RED_TEMP}curl 下载失败: %s${NC_TEMP}\n" "$remote_path" >&2
-                    return 1
-                fi
-            else
-                printf "${RED_TEMP}curl 下载失败: %s${NC_TEMP}\n" "$remote_path" >&2
-                return 1
-            fi
+            printf "${RED_TEMP}  -> ✗ 使用 curl 从 %s 源下载失败${NC_TEMP}\n" "$source_name" >&2
+            return 1
         fi
     elif command -v wget >/dev/null 2>&1; then
         if wget --timeout=10 --tries=3 -qO "$local_path" "$selected_url"; then
-            printf "  -> 使用 wget 从 %s 源下载成功\n" "$source_name"
+            printf "  -> ${GREEN_TEMP}✓ 使用 wget 从 %s 源下载成功${NC_TEMP}\n" "$source_name"
         else
-            printf "${RED_TEMP}  -> 使用 wget 从 %s 源下载失败${NC_TEMP}\n" "$source_name" >&2
-            if [ "$source_name" = "GitHub" ]; then
-                printf "  -> 重试 Gitee 源...\n"
-                if wget --timeout=10 --tries=3 -qO "$local_path" "$gitee_url"; then
-                    printf "${YELLOW_TEMP}  -> 已切换到 Gitee 源完成下载${NC_TEMP}\n"
-                else
-                    printf "${RED_TEMP}wget 下载失败: %s${NC_TEMP}\n" "$remote_path" >&2
-                    return 1
-                fi
-            else
-                printf "${RED_TEMP}wget 下载失败: %s${NC_TEMP}\n" "$remote_path" >&2
-                return 1
-            fi
+            printf "${RED_TEMP}  -> ✗ 使用 wget 从 %s 源下载失败${NC_TEMP}\n" "$source_name" >&2
+            return 1
         fi
     else
         printf "${RED_TEMP}致命错误: curl 和 wget 都未安装${NC_TEMP}\n" >&2
@@ -210,5 +258,5 @@ echo -e "\n${GREEN}===========================================${NC}"
 echo -e "${GREEN}    Linux 工具箱安装/更新 成功！  ${NC}"
 echo -e "${GREEN}===========================================${NC}"
 echo -e "${YELLOW}现在你可以通过输入以下命令来运行它:${NC}"
-echo -e "${CYAN}\n    tool\n${NC}"
+echo -e "${CYAN}\n tool\n${NC}"
 exit 0
