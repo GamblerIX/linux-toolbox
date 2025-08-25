@@ -94,7 +94,7 @@ function ltbx_test_url_response_time() {
             return 1
         fi
     else
-        printf "${RED_TEMP}错误: curl 和 wget 都未安装${NC_TEMP}\n" >&2
+        printf "\e[1;91m错误: curl 和 wget 都未安装\e[0m\n" >&2
         echo "999999"
         return 1
     fi
