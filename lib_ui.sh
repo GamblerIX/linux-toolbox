@@ -5,7 +5,7 @@ IFS=$'\n\t'
 
 trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${FUNCNAME[0]:-main}" "$?"' ERR
 
-ltbx_press_any_key() {
+function ltbx_press_any_key() {
     printf "\n"
     if [ "${LTBX_NON_INTERACTIVE:-false}" = "true" ]; then
         printf "${YELLOW}非交互模式，跳过等待${NC}\n"
@@ -16,7 +16,7 @@ ltbx_press_any_key() {
     printf "\n"
 }
 
-ltbx_select_user_interactive() {
+function ltbx_select_user_interactive() {
     local prompt_message="$1"
 
     if [ "${LTBX_NON_INTERACTIVE:-false}" = "true" ]; then
@@ -59,7 +59,7 @@ ltbx_select_user_interactive() {
     fi
 }
 
-ltbx_show_menu_header() {
+function ltbx_show_menu_header() {
     local title="$1"
     local width=${2:-50}
 
@@ -83,7 +83,7 @@ ltbx_show_menu_header() {
     printf "╣${NC}\n"
 }
 
-ltbx_show_menu_footer() {
+function ltbx_show_menu_footer() {
     local width=${1:-50}
 
     printf "${CYAN}"
@@ -92,7 +92,7 @@ ltbx_show_menu_footer() {
     printf "╝${NC}\n"
 }
 
-ltbx_show_menu_item() {
+function ltbx_show_menu_item() {
     local number="$1"
     local text="$2"
     local color="${3:-GREEN}"
@@ -107,7 +107,7 @@ ltbx_show_menu_item() {
     printf "║${NC}\n"
 }
 
-ltbx_validate_number() {
+function ltbx_validate_number() {
     local input="$1"
     local min="${2:-0}"
     local max="${3:-999}"
@@ -119,7 +119,7 @@ ltbx_validate_number() {
     fi
 }
 
-ltbx_validate_yes_no() {
+function ltbx_validate_yes_no() {
     local input="$1"
 
     if [[ "$input" =~ ^[YyNn]$ ]]; then
@@ -129,7 +129,7 @@ ltbx_validate_yes_no() {
     fi
 }
 
-ltbx_show_progress() {
+function ltbx_show_progress() {
     local current="$1"
     local total="$2"
     local message="${3:-处理中}"

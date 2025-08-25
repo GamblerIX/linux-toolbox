@@ -5,7 +5,7 @@ GeekbenchTest='Y'
 LOG_FILE="/tmp/superbench_$(date +%s).log"
 SPEED_LOG_FILE="/tmp/speedtest_$(date +%s).log"
 
-ltbx_sb_about() {
+function ltbx_sb_about() {
     printf "\n"
     printf " ========================================================= \n"
     printf " \\      Superbench Integration for Linux Toolbox         / \n"
@@ -15,7 +15,7 @@ ltbx_sb_about() {
     printf "\n"
 }
 
-ltbx_sb_cancel() {
+function ltbx_sb_cancel() {
     printf "\n"
     ltbx_sb_next
     printf " Abort ...\n"
@@ -25,7 +25,7 @@ ltbx_sb_cancel() {
     exit
 }
 
-ltbx_sb_benchinit() {
+function ltbx_sb_benchinit() {
     [[ $EUID -ne 0 ]] && printf "${RED}Error:${PLAIN} This script must be run as root!\n" && exit 1
 
 ARCH=$(uname -m)
@@ -83,17 +83,17 @@ ARCH="arm"
     start_time=$(date +%s)
 }
 
-ltbx_sb_get_opsy() {
+function ltbx_sb_get_opsy() {
     [ -f /etc/redhat-release ] && awk '{print ($1,$3~/^[0-9]/?$3:$4)}' /etc/redhat-release && return
     [ -f /etc/os-release ] && awk -F'[= "]' '/PRETTY_NAME/{print $3,$4,$5}' /etc/os-release && return
     [ -f /etc/lsb-release ] && awk -F'[="]+' '/DESCRIPTION/{print $2}' /etc/lsb-release && return
 }
 
-ltbx_sb_next() {
+function ltbx_sb_next() {
     printf "%-82s\n" "-" | sed 's/\s/-/g' | tee -a $LOG_FILE
 }
 
-ltbx_sb_speed_test() {
+function ltbx_sb_speed_test() {
     local server_id=$1
     local node_name=$2
     local extra_args=""
@@ -121,7 +121,7 @@ packet_loss="N/A"
     fi
 }
 
-ltbx_sb_print_china_speedtest() {
+function ltbx_sb_print_china_speedtest() {
     printf "%-18s%-18s%-20s%-12s%-20s\n" " Node Name" "Upload Speed" "Download Speed" "Latency" "Packet Loss" | tee -a $LOG_FILE
     ltbx_sb_speed_test '' 'Speedtest.net'
     ltbx_sb_speed_test '36663' 'Zhenjiang 5G CT'
@@ -134,7 +134,7 @@ ltbx_sb_print_china_speedtest() {
     ltbx_sb_speed_test '4575'  'Chengdu      CM'
 }
 
-ltbx_sb_print_global_speedtest() {
+function ltbx_sb_print_global_speedtest() {
     printf "%-18s%-18s%-20s%-12s%-20s\n" " Node Name" "Upload Speed" "Download Speed" "Latency" "Packet Loss" | tee -a $LOG_FILE
     ltbx_sb_speed_test '1536'  'Hong Kong    CN'
     ltbx_sb_speed_test '18611' 'Taiwan       CN'
@@ -145,11 +145,11 @@ ltbx_sb_print_global_speedtest() {
     ltbx_sb_speed_test '53651' 'Frankfurt    DE'
 }
 
-ltbx_sb_io_test() {
+function ltbx_sb_io_test() {
     (LANG=C dd if=/dev/zero of=test_file_$$ bs=512K count=$1 conv=fdatasync && rm -f test_file_$$ ) 2>&1 | awk -F, '{io=$NF} END { print io}' | sed 's/^[ \t]*//;s/[ \t]*$//'
 }
 
-ltbx_sb_freedisk() {
+function ltbx_sb_freedisk() {
     local freespace
 freespace=$( df -m . | awk 'NR==2 {print $4}' )
     if [[ -z $freespace ]]; then
@@ -164,7 +164,7 @@ freespace=$( df -m . | awk 'NR==3 {print $3}' )
     fi
 }
 
-ltbx_sb_print_io() {
+function ltbx_sb_print_io() {
     local writemb=$(ltbx_sb_freedisk)
 
     if [[ $writemb != "1" ]]; then
@@ -194,7 +194,7 @@ ltbx_sb_print_io() {
     fi
 }
 
-ltbx_sb_print_system_info() {
+function ltbx_sb_print_system_info() {
 	printf " CPU Model            : ${SKYBLUE}%s${PLAIN}\n" "$cname" | tee -a $LOG_FILE
 	printf " CPU Cores            : ${YELLOW}%s Cores @ ${SKYBLUE}%s MHz${PLAIN}\n" "$cores" "$freq" | tee -a $LOG_FILE
 	printf " CPU Flags            : ${SKYBLUE}AES-NI %s & VM-x/AMD-V %s${PLAIN}\n" "$aes" "$virt" | tee -a $LOG_FILE
@@ -207,7 +207,7 @@ ltbx_sb_print_system_info() {
 	printf " TCP CC               : ${YELLOW}%s${PLAIN}\n" "$tcpctrl" | tee -a $LOG_FILE
 }
 
-ltbx_sb_calc_disk() {
+function ltbx_sb_calc_disk() {
     local total_size=0; local size_t=0
     for size in "$@"; do
         [[ "${size: -1}" == "K" ]] && size_t=$(awk 'BEGIN{printf "%.1f", '${size:0:${#size}-1}' / 1024 / 1024}')
@@ -219,7 +219,7 @@ ltbx_sb_calc_disk() {
     printf "%s" "$total_size"
 }
 
-ltbx_sb_get_system_info() {
+function ltbx_sb_get_system_info() {
 cname=$(awk -F: '/model name/ {name=$2} END {print name}' /proc/cpuinfo | sed 's/^[ \t]*//;s/[ \t]*$//')
 cores=$(awk -F: '/model name/ {core++} END {print core}' /proc/cpuinfo)
 freq=$(awk -F: '/cpu MHz/ {freq=$2} END {print freq}' /proc/cpuinfo | sed 's/^[ \t]*//;s/[ \t]*$//')
@@ -254,7 +254,7 @@ virtual="Xen"
 	fi
 }
 
-ltbx_sb_traceroute_test() {
+function ltbx_sb_traceroute_test() {
     local ip=$1
     local mode=$2
     local max_hop=$3
@@ -267,7 +267,7 @@ ltbx_sb_traceroute_test() {
     fi
 }
 
-ltbx_sb_print_traceroute_test() {
+function ltbx_sb_print_traceroute_test() {
     ltbx_sb_traceroute_test "113.108.209.1" "TCP" "30" "China, Guangzhou CT"
     ltbx_sb_traceroute_test "180.153.28.5"  "TCP" "30" "China, Shanghai CT"
     ltbx_sb_traceroute_test "210.21.4.130"  "TCP" "30" "China, Guangzhou CU"
@@ -276,7 +276,7 @@ ltbx_sb_print_traceroute_test() {
     ltbx_sb_traceroute_test "221.183.55.22" "TCP" "30" "China, Shanghai CM"
 }
 
-ltbx_sb_print_end_time() {
+function ltbx_sb_print_end_time() {
     local end_time; end_time=$(date +%s)
     local time_diff=$((end_time - start_time))
     local minutes=$((time_diff / 60))
@@ -292,7 +292,7 @@ bj_time=$(date -u '+%Y-%m-%d %H:%M:%S')
     printf " Results log     : %s\n" "$LOG_FILE"
 }
 
-ltbx_sb_cleanup() {
+function ltbx_sb_cleanup() {
     rm -f test_file_* 2>/dev/null || true
     rm -rf speedtest* 2>/dev/null || true
     rm -f nexttrace 2>/dev/null || true
@@ -302,7 +302,7 @@ ltbx_sb_cleanup() {
     find /tmp -name "speedtest_*.log" -type f -mtime +1 -delete 2>/dev/null || true
 }
 
-run_superbench_test() {
+function run_superbench_test() {
     trap 'ltbx_sb_cancel' SIGINT
 
     > "$LOG_FILE"

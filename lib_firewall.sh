@@ -5,7 +5,7 @@ IFS=$'\n\t'
 
 trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${FUNCNAME[0]:-main}" "$?"' ERR
 
-ltbx_get_active_firewall() {
+function ltbx_get_active_firewall() {
     if systemctl is-active --quiet firewalld 2>/dev/null; then
         echo "firewalld"
     elif command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
@@ -15,7 +15,7 @@ ltbx_get_active_firewall() {
     fi
 }
 
-ltbx_firewall_management_menu() {
+function ltbx_firewall_management_menu() {
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
         ltbx_log "WARN" "Non-interactive mode detected, skipping firewall management menu"
         return 0
@@ -86,7 +86,7 @@ fw=$(ltbx_get_active_firewall)
     ltbx_firewall_management_menu
 }
 
-ltbx_install_firewall_menu() {
+function ltbx_install_firewall_menu() {
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
         ltbx_log "WARN" "Non-interactive mode detected, skipping firewall installation menu"
         return 0
@@ -128,7 +128,7 @@ ltbx_install_firewall_menu() {
     ltbx_firewall_management_menu
 }
 
-ltbx_switch_firewall_system() {
+function ltbx_switch_firewall_system() {
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
         ltbx_log "WARN" "Non-interactive mode detected, skipping firewall system switch"
         return 0

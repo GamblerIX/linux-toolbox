@@ -579,7 +579,7 @@ EOF
     printf "${GREEN}官方源已恢复并更新缓存。${NC}\n"
 }
 
-ltbx_restore_official_sources() {
+function ltbx_restore_official_sources() {
     ltbx_restore_official_mirror
 }
 
