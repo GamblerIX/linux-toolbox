@@ -5,7 +5,7 @@ IFS=$'\n\t'
 
 trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${FUNCNAME[0]:-main}" "$?"' ERR
 
-ltbx_network_tools_menu() {
+function ltbx_network_tools_menu() {
     ltbx_show_header
     printf "${YELLOW}====== 网络与安全工具 ======${NC}\n"
     printf "${GREEN} 1. 网络速度测试${NC}\n"
@@ -13,6 +13,7 @@ ltbx_network_tools_menu() {
     printf "${GREEN} 3. 防火墙管理${NC}\n"
     printf "${GREEN} 4. BBR网络加速管理${NC}\n"
     printf "${GREEN} 5. 列出已占用端口${NC}\n"
+    printf "${GREEN} 6. 终止端口占用进程${NC}\n"
     printf "${GREEN} 0. 返回主菜单${NC}\n"
     printf "${CYAN}==============================================${NC}\n"
 
@@ -22,19 +23,20 @@ ltbx_network_tools_menu() {
     fi
 
     local choice
-    read -p " 请输入选项 [0-5]: " choice < /dev/tty
+    read -p " 请输入选项 [0-6]: " choice < /dev/tty
     case $choice in
         1) ltbx_network_speed_test_menu ;;
         2) ltbx_view_ssh_logs_menu ;;
         3) ltbx_firewall_management_menu ;;
         4) ltbx_bbr_management_menu ;;
         5) ltbx_list_used_ports ;;
+        6) ltbx_kill_port_menu ;;
         0) return ;;
         *) printf "${RED}无效选项${NC}\n"; sleep 1; ltbx_network_tools_menu ;;
     esac
 }
 
-ltbx_network_speed_test_menu() {
+function ltbx_network_speed_test_menu() {
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
         ltbx_log "WARN" "Non-interactive mode detected, skipping network speed test menu"
         return 1
@@ -59,7 +61,7 @@ ltbx_network_speed_test_menu() {
     ltbx_network_tools_menu
 }
 
-ltbx_run_speedtest_cli() {
+function ltbx_run_speedtest_cli() {
     local install_speedtest speedtest_output ping download upload
 
     ltbx_show_header
@@ -95,7 +97,7 @@ upload=$(echo "$speedtest_output" | grep "Upload" | awk -F': ' '{print $2}')
     fi
 }
 
-ltbx_run_superbench() {
+function ltbx_run_superbench() {
     ltbx_show_header
     printf "${YELLOW}====== 综合性能测试 (Superbench) ======${NC}\n"
     printf "${CYAN}即将执行本地集成的 Superbench 测试脚本...${NC}\n"
@@ -110,7 +112,7 @@ ltbx_run_superbench() {
     fi
 }
 
-ltbx_view_ssh_logs_menu() {
+function ltbx_view_ssh_logs_menu() {
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
         ltbx_log "WARN" "Non-interactive mode detected, skipping SSH logs menu"
         return 1
@@ -137,7 +139,7 @@ ltbx_view_ssh_logs_menu() {
     ltbx_network_tools_menu
 }
 
-ltbx_display_ssh_logs() {
+function ltbx_display_ssh_logs() {
     local log_type=$1
     local log_file=""
     local success_pattern="Accepted" failure_pattern="Failed password" raw_logs=""
@@ -214,7 +216,7 @@ options=""
     done
 }
 
-ltbx_list_used_ports() {
+function ltbx_list_used_ports() {
     ltbx_show_header
     printf "${YELLOW}====== 列出已占用的端口 ======${NC}\n"
 
@@ -234,7 +236,96 @@ ltbx_list_used_ports() {
     ltbx_network_tools_menu
 }
 
-ltbx_bbr_management_menu() {
+function ltbx_kill_port_process() {
+    local port=$1
+    local pids
+    
+    if [[ -z "$port" ]]; then
+        printf "${RED}错误: 请提供端口号${NC}\n"
+        return 1
+    fi
+    
+    if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+        printf "${RED}错误: 端口号必须是数字${NC}\n"
+        return 1
+    fi
+    
+    printf "${YELLOW}正在查找占用端口 $port 的进程...${NC}\n"
+    
+    if command -v ss &>/dev/null; then
+        pids=$(ss -tulnp 2>/dev/null | awk -v port="$port" '$5 ~ ":"port"$" {match($7,/pid=([0-9]+)/,a); if(a[1]) print a[1]}' | sort -u)
+    elif command -v netstat &>/dev/null; then
+        pids=$(netstat -tulnp 2>/dev/null | awk -v port="$port" '$4 ~ ":"port"$" {split($7,p,"/"); if(p[1] && p[1] != "-") print p[1]}' | sort -u)
+    else
+        printf "${RED}未找到 ss 或 netstat 命令${NC}\n"
+        return 1
+    fi
+    
+    if [[ -z "$pids" ]]; then
+        printf "${YELLOW}端口 $port 未被占用${NC}\n"
+        return 0
+    fi
+    
+    printf "${CYAN}找到以下进程占用端口 $port:${NC}\n"
+    for pid in $pids; do
+        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+            local cmd_info
+            cmd_info=$(ps -p "$pid" -o pid,ppid,cmd --no-headers 2>/dev/null || echo "$pid - 未知进程")
+            printf "  PID: %s - %s\n" "$pid" "$cmd_info"
+        fi
+    done
+    
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
+        printf "${YELLOW}非交互模式，跳过确认直接终止进程${NC}\n"
+        local confirm="y"
+    else
+        local confirm
+        read -p "${RED}确定要终止这些进程吗? (y/N): ${NC}" confirm < /dev/tty
+    fi
+    
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        for pid in $pids; do
+            if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+                if kill "$pid" 2>/dev/null; then
+                    printf "${GREEN}已终止进程 PID: $pid${NC}\n"
+                    sleep 1
+                    if kill -0 "$pid" 2>/dev/null; then
+                        printf "${YELLOW}进程 $pid 仍在运行，强制终止...${NC}\n"
+                        kill -9 "$pid" 2>/dev/null && printf "${GREEN}强制终止成功${NC}\n" || printf "${RED}强制终止失败${NC}\n"
+                    fi
+                else
+                    printf "${RED}终止进程 $pid 失败${NC}\n"
+                fi
+            fi
+        done
+    else
+        printf "${YELLOW}已取消操作${NC}\n"
+    fi
+}
+
+function ltbx_kill_port_menu() {
+    ltbx_show_header
+    printf "${YELLOW}====== 终止端口占用进程 ======${NC}\n"
+    
+    if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
+        printf "${RED}错误: 此功能需要交互模式${NC}\n"
+        return 1
+    fi
+    
+    local port
+    read -p "请输入要释放的端口号: " port < /dev/tty
+    
+    if [[ -n "$port" ]]; then
+        ltbx_kill_port_process "$port"
+    else
+        printf "${RED}端口号不能为空${NC}\n"
+    fi
+    
+    ltbx_press_any_key
+    ltbx_network_tools_menu
+}
+
+function ltbx_bbr_management_menu() {
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
         ltbx_log "WARN" "Non-interactive mode detected, skipping BBR management menu"
         return 1
@@ -260,7 +351,7 @@ ltbx_bbr_management_menu() {
     ltbx_bbr_management_menu
 }
 
-ltbx_view_bbr_status() {
+function ltbx_view_bbr_status() {
     local status qdisc
     status=$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | awk '{print $3}')
     qdisc=$(sysctl net.core.default_qdisc 2>/dev/null | awk '{print $3}')
@@ -284,7 +375,7 @@ ltbx_view_bbr_status() {
     sysctl net.core.default_qdisc 2>/dev/null || true
 }
 
-ltbx_enable_bbr() {
+function ltbx_enable_bbr() {
     local confirm
     printf "${YELLOW}====== 开启 BBR ======${NC}\n"
 
@@ -317,7 +408,7 @@ ltbx_enable_bbr() {
     printf "${GREEN}BBR 已开启，配置已写入 /etc/sysctl.conf。${NC}\n"
 }
 
-ltbx_disable_bbr() {
+function ltbx_disable_bbr() {
     printf "${YELLOW}====== 关闭 BBR ======${NC}\n"
 
     if [[ "$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | awk '{print $3}')" != "bbr" ]]; then

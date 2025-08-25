@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${BASH_COMMAND}"' ERR
+trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${FUNCNAME[0]:-main}" "$?"' ERR
 
 ltbx_get_active_firewall() {
     if systemctl is-active --quiet firewalld 2>/dev/null; then

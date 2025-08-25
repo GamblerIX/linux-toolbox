@@ -5,7 +5,7 @@ IFS=$'\n\t'
 
 trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${FUNCNAME[0]:-main}" "$?"' ERR
 
-ltbx_toolbox_management_menu() {
+function ltbx_toolbox_management_menu() {
     if [ "${LTBX_NON_INTERACTIVE:-false}" = "true" ]; then
         printf "${YELLOW}非交互模式，跳过工具箱管理${NC}\n"
         return 0
@@ -54,8 +54,8 @@ ltbx_toolbox_management_menu() {
     esac
 }
 
-ltbx_install_or_update_toolbox() {
-    printf "${YELLOW}正在从 GitHub 下载最新安装脚本并执行...${NC}\n"
+function ltbx_install_or_update_toolbox() {
+    printf "${YELLOW}正在下载最新安装脚本并执行...${NC}\n"
     local install_script_url="https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh"
     local expected_sha256=""
     local temp_script
@@ -68,27 +68,10 @@ ltbx_install_or_update_toolbox() {
 
     ltbx_log "开始下载安装脚本: $install_script_url" "info"
 
-    if command -v curl &>/dev/null; then
-        if ! timeout 30 curl -sL --connect-timeout 10 --max-time 60 "${install_script_url}" -o "$temp_script"; then
-            ltbx_log "curl下载失败" "error"
-            printf "${RED}错误: 下载安装脚本失败（可能是网络超时）${NC}\n"
-            rm -f "$temp_script" 2>/dev/null || true
-            ltbx_press_any_key
-            ltbx_toolbox_management_menu
-            return 1
-        fi
-    elif command -v wget &>/dev/null; then
-        if ! timeout 30 wget --timeout=10 --tries=3 -qO "$temp_script" "${install_script_url}"; then
-            ltbx_log "wget下载失败" "error"
-            printf "${RED}错误: 下载安装脚本失败（可能是网络超时）${NC}\n"
-            rm -f "$temp_script"
-            ltbx_press_any_key
-            ltbx_toolbox_management_menu
-            return 1
-        fi
-    else
-        ltbx_log "缺少下载工具" "error"
-        printf "${RED}错误: curl 或 wget 未安装，无法下载安装脚本。${NC}\n"
+    if ! ltbx_download_with_auto_source "$install_script_url" "$temp_script"; then
+        ltbx_log "下载安装脚本失败" "error"
+        printf "${RED}错误: 下载安装脚本失败${NC}\n"
+        rm -f "$temp_script" 2>/dev/null || true
         ltbx_press_any_key
         ltbx_toolbox_management_menu
         return 1
@@ -143,7 +126,7 @@ actual_sha256=$(sha256sum "$temp_script" | cut -d' ' -f1)
     fi
 }
 
-ltbx_uninstall_toolbox() {
+function ltbx_uninstall_toolbox() {
     printf "${YELLOW}正在卸载工具箱...${NC}\n"
 
     local tool_executable="${LTBX_TOOL_EXECUTABLE:-/usr/local/bin/tool}"
@@ -170,19 +153,25 @@ ltbx_uninstall_toolbox() {
     exit 0
 }
 
-ltbx_check_version() {
+function ltbx_check_version() {
     local current_version="${LTBX_VERSION:-unknown}"
     local remote_version_url="https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/VERSION"
     local remote_version
 
     printf "${BLUE}当前版本: %s${NC}\n" "$current_version"
 
-    if command -v curl &>/dev/null; then
-remote_version=$(curl -s "$remote_version_url" 2>/dev/null | tr -d '\n\r' || echo "unknown")
-    elif command -v wget &>/dev/null; then
-remote_version=$(wget -qO- "$remote_version_url" 2>/dev/null | tr -d '\n\r' || echo "unknown")
+    local temp_version_file
+    temp_version_file=$(ltbx_create_temp_file "version_check") || {
+        printf "${YELLOW}无法检查远程版本：创建临时文件失败${NC}\n"
+        return 1
+    }
+
+    if ltbx_download_with_auto_source "$remote_version_url" "$temp_version_file"; then
+        remote_version=$(cat "$temp_version_file" 2>/dev/null | tr -d '\n\r' || echo "unknown")
+        rm -f "$temp_version_file" 2>/dev/null || true
     else
-        printf "${YELLOW}无法检查远程版本：缺少 curl 或 wget${NC}\n"
+        printf "${YELLOW}无法检查远程版本：下载失败${NC}\n"
+        rm -f "$temp_version_file" 2>/dev/null || true
         return 1
     fi
 
@@ -197,7 +186,7 @@ remote_version=$(wget -qO- "$remote_version_url" 2>/dev/null | tr -d '\n\r' || e
     fi
 }
 
-ltbx_auto_update_check() {
+function ltbx_auto_update_check() {
     local last_check_file="${LTBX_CONFIG_DIR:-/tmp}/last_update_check"
     local current_time
 current_time=$(date +%s)
@@ -224,7 +213,7 @@ last_check=$(cat "$last_check_file" 2>/dev/null || echo "0")
     fi
 }
 
-ltbx_backup_config() {
+function ltbx_backup_config() {
     local backup_dir="${LTBX_BACKUP_DIR:-$HOME/.linux-toolbox-backup}"
     local timestamp
 timestamp=$(date +%Y%m%d_%H%M%S)
@@ -248,7 +237,7 @@ timestamp=$(date +%Y%m%d_%H%M%S)
     fi
 }
 
-ltbx_restore_config() {
+function ltbx_restore_config() {
     local backup_dir="${LTBX_BACKUP_DIR:-$HOME/.linux-toolbox-backup}"
 
     if [ ! -d "$backup_dir" ]; then

@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${BASH_COMMAND}"' ERR
+trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${FUNCNAME[0]:-main}" "$?"' ERR
 
 function ltbx_installer_menu() {
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
@@ -53,25 +53,34 @@ function ltbx_run_installer() {
     local temp_script="installer_temp.sh"
     ltbx_log "INFO" "Downloading installer script from: ${script_url}"
 
-    if command -v curl &>/dev/null; then
-        if ! curl -sSL "${script_url}" -o "${temp_script}" 2>/dev/null; then
-            ltbx_log "ERROR" "Failed to download script using curl"
-            printf "${RED}错误: 下载安装脚本失败。${NC}\n"
-            ltbx_press_any_key
-            return 1
-        fi
-    elif command -v wget &>/dev/null; then
-        if ! wget -qO "${temp_script}" "${script_url}" 2>/dev/null; then
-            ltbx_log "ERROR" "Failed to download script using wget"
+    if [[ "$script_url" == *"github.com"* ]] || [[ "$script_url" == *"githubusercontent.com"* ]]; then
+        if ! ltbx_download_with_auto_source "${script_url}" "${temp_script}"; then
+            ltbx_log "ERROR" "Failed to download script with auto source selection"
             printf "${RED}错误: 下载安装脚本失败。${NC}\n"
             ltbx_press_any_key
             return 1
         fi
     else
-        ltbx_log "ERROR" "Neither curl nor wget is available"
-        printf "${RED}错误: curl 或 wget 未安装。${NC}\n"
-        ltbx_press_any_key
-        return 1
+        if command -v curl &>/dev/null; then
+            if ! curl -sSL "${script_url}" -o "${temp_script}" 2>/dev/null; then
+                ltbx_log "ERROR" "Failed to download script using curl"
+                printf "${RED}错误: 下载安装脚本失败。${NC}\n"
+                ltbx_press_any_key
+                return 1
+            fi
+        elif command -v wget &>/dev/null; then
+            if ! wget -qO "${temp_script}" "${script_url}" 2>/dev/null; then
+                ltbx_log "ERROR" "Failed to download script using wget"
+                printf "${RED}错误: 下载安装脚本失败。${NC}\n"
+                ltbx_press_any_key
+                return 1
+            fi
+        else
+            ltbx_log "ERROR" "Neither curl nor wget is available"
+            printf "${RED}错误: curl 或 wget 未安装。${NC}\n"
+            ltbx_press_any_key
+            return 1
+        fi
     fi
 
     if [[ ! -s "${temp_script}" ]]; then

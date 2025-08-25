@@ -5,7 +5,7 @@ IFS=$'\n\t'
 
 trap 'ltbx_error_handler "${BASH_SOURCE[0]}" "${LINENO}" "${FUNCNAME[0]:-main}" "$?"' ERR
 
-ltbx_check_root() {
+function ltbx_check_root() {
     # 临时跳过权限检查以支持测试环境
     return 0
     
@@ -41,7 +41,7 @@ ltbx_check_root() {
     fi
 }
 
-ltbx_detect_os() {
+function ltbx_detect_os() {
     if [ -f /etc/os-release ]; then
         source /etc/os-release
 
@@ -97,7 +97,7 @@ LTBX_OS_VERSION="${VERSION_ID:-unknown}"
         exit 1
     fi
 
-ltbx_init_config() {
+function ltbx_init_config() {
     if [ -f "/usr/local/bin/tool" ]; then
         LTBX_INSTALLED=true
     else
@@ -105,7 +105,7 @@ ltbx_init_config() {
     fi
 }
 
-ltbx_update_config() {
+function ltbx_update_config() {
     local key="$1"
     local value="$2"
     local config_file="${3:-config.cfg}"
@@ -121,7 +121,7 @@ ltbx_update_config() {
     fi
 }
 
-ltbx_show_header() {
+function ltbx_show_header() {
     clear
     printf "${PURPLE}"
     printf '██╗     ██╗███╗   ██╗██╗   ██╗██╗  ██╗\n'
@@ -143,7 +143,7 @@ ltbx_show_header() {
     printf "${PURPLE}  检测到系统: ${LTBX_OS_TYPE:-unknown} ${LTBX_OS_VERSION:-unknown} (${LTBX_OS_CODENAME:-unknown})${NC}\n"
 }
 
-ltbx_manage_tools_menu() {
+function ltbx_manage_tools_menu() {
     ltbx_show_header
     printf "${YELLOW}====== 系统管理工具 ======${NC}\n"
     printf "${GREEN}1. 清理系统垃圾${NC}\n"
@@ -168,7 +168,7 @@ ltbx_manage_tools_menu() {
     esac
 }
 
-ltbx_clean_system() {
+function ltbx_clean_system() {
     ltbx_show_header
     printf "${YELLOW}====== 清理系统垃圾 ======${NC}\n"
 
@@ -205,7 +205,7 @@ ltbx_clean_system() {
     ltbx_press_any_key
 }
 
-ltbx_user_management_menu() {
+function ltbx_user_management_menu() {
     ltbx_show_header
     printf "${YELLOW}====== 用户管理 ======${NC}\n"
     printf "${CYAN}┌────────────┐${NC}\n"
@@ -367,7 +367,7 @@ ltbx_user_management_menu() {
     ltbx_press_any_key; ltbx_user_management_menu
 }
 
-ltbx_kernel_management_menu() {
+function ltbx_kernel_management_menu() {
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
         ltbx_log "WARN" "Non-interactive mode detected, skipping kernel management menu"
         return 0
@@ -405,7 +405,7 @@ ltbx_kernel_management_menu() {
     ltbx_kernel_management_menu
 }
 
-ltbx_change_source_menu() {
+function ltbx_change_source_menu() {
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
         ltbx_log "WARN" "Non-interactive mode detected, skipping change source menu"
         return 0
@@ -434,7 +434,7 @@ ltbx_change_source_menu() {
     ltbx_change_source_menu
 }
 
-ltbx_change_mirror() {
+function ltbx_change_mirror() {
     local provider="$1" mirror_url="" mirror_name="" confirm
     case "$provider" in
         aliyun) mirror_url="https://mirrors.aliyun.com"; mirror_name="阿里云";;
@@ -470,7 +470,7 @@ ltbx_change_mirror() {
     printf "${GREEN}缓存更新完毕！${NC}\n"
 }
 
-ltbx_change_mirror_ubuntu() {
+function ltbx_change_mirror_ubuntu() {
     cat > /etc/apt/sources.list <<EOF
 deb $1/ubuntu/ ${LTBX_OS_CODENAME:-focal} main restricted universe multiverse
 deb http://security.ubuntu.com/ubuntu/ ${LTBX_OS_CODENAME:-focal}-security main restricted universe multiverse
@@ -483,7 +483,7 @@ deb-src $1/ubuntu/ ${LTBX_OS_CODENAME:-focal}-backports main restricted universe
 EOF
 }
 
-ltbx_change_mirror_debian() {
+function ltbx_change_mirror_debian() {
     local components="main contrib non-free non-free-firmware"
     cat > /etc/apt/sources.list <<EOF
 deb $1/debian/ ${LTBX_OS_CODENAME:-bullseye} ${components}
@@ -497,7 +497,7 @@ deb-src $1/debian/ ${LTBX_OS_CODENAME:-bullseye}-backports ${components}
 EOF
 }
 
-ltbx_change_mirror_centos() {
+function ltbx_change_mirror_centos() {
     if [[ "${LTBX_OS_VERSION:-}" != "7" ]]; then
         printf "${RED}YUM换源暂仅支持CentOS 7。${NC}\n"
         return 1
@@ -527,7 +527,7 @@ gpgkey=$1/centos/RPM-GPG-KEY-CentOS-7
 EOF
 }
 
-ltbx_restore_official_mirror() {
+function ltbx_restore_official_mirror() {
     local confirm
 
     if [[ "${LTBX_NON_INTERACTIVE:-false}" == "true" ]]; then
