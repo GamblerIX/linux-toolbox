@@ -167,7 +167,7 @@ function download_file() {
     local timeout="${3:-3}"
     
     if [[ -z "$remote_path" ]] || [[ -z "$local_path" ]]; then
-        printf "${RED_TEMP}错误: 下载参数不能为空${NC_TEMP}\n" >&2
+        printf "\e[1;91m错误: 下载参数不能为空\e[0m\n" >&2
         return 1
     fi
     
@@ -189,29 +189,43 @@ function download_file() {
     source_name=$(echo "$source_result" | cut -d'|' -f2)
     
     printf "\e[1;96m  -> 开始下载: %s\e[0m\n" "$(basename "$local_path")"
-        # 使用选定的最优源进行下载
+    printf "  -> 使用URL: %s\n" "$selected_url"
+    
+    # 使用选定的最优源进行下载
     if command -v curl >/dev/null 2>&1; then
-        if curl -sL --connect-timeout 10 --max-time 60 "$selected_url" -o "$local_path"; then
-            printf "  -> \e[1;92m✓ 使用 curl 从 %s 源下载成功\e[0m\n" "$source_name"
+        printf "  -> 使用 curl 下载...\n"
+        if curl -sL --connect-timeout 10 --max-time 60 "$selected_url" -o "$local_path" 2>/dev/null; then
+            if [[ -s "$local_path" ]]; then
+                printf "  -> \e[1;92m✓ 使用 curl 从 %s 源下载成功\e[0m\n" "$source_name"
+            else
+                printf "\e[1;91m  -> ✗ 下载的文件为空\e[0m\n" >&2
+                rm -f "$local_path" 2>/dev/null || true
+                return 1
+            fi
         else
             printf "\e[1;91m  -> ✗ 使用 curl 从 %s 源下载失败\e[0m\n" "$source_name" >&2
+            printf "  -> 尝试详细错误信息: \n" >&2
+            curl -sL --connect-timeout 10 --max-time 60 "$selected_url" -o "$local_path" 2>&1 | head -5 >&2
             return 1
         fi
     elif command -v wget >/dev/null 2>&1; then
-        if wget --timeout=10 --tries=3 -qO "$local_path" "$selected_url"; then
-            printf "  -> \e[1;92m✓ 使用 wget 从 %s 源下载成功\e[0m\n" "$source_name"
+        printf "  -> 使用 wget 下载...\n"
+        if wget --timeout=10 --tries=3 -qO "$local_path" "$selected_url" 2>/dev/null; then
+            if [[ -s "$local_path" ]]; then
+                printf "  -> \e[1;92m✓ 使用 wget 从 %s 源下载成功\e[0m\n" "$source_name"
+            else
+                printf "\e[1;91m  -> ✗ 下载的文件为空\e[0m\n" >&2
+                rm -f "$local_path" 2>/dev/null || true
+                return 1
+            fi
         else
             printf "\e[1;91m  -> ✗ 使用 wget 从 %s 源下载失败\e[0m\n" "$source_name" >&2
+            printf "  -> 尝试详细错误信息: \n" >&2
+            wget --timeout=10 --tries=1 -O "$local_path" "$selected_url" 2>&1 | head -5 >&2
             return 1
         fi
     else
         printf "\e[1;91m致命错误: curl 和 wget 都未安装\e[0m\n" >&2
-        return 1
-    fi
-    
-    if [[ ! -s "$local_path" ]]; then
-        printf "\e[1;91m下载文件为空或失败: %s\e[0m\n" "$remote_path" >&2
-        rm -f "$local_path" 2>/dev/null || true
         return 1
     fi
     
@@ -225,7 +239,7 @@ echo -e "${CYAN_TEMP}--> 步骤 1: 创建目录...${NC_TEMP}"
 mkdir -p "${LIB_DIR}"; mkdir -p "${CONFIG_DIR}"
 echo -e "${GREEN_TEMP}目录准备就绪。${NC_TEMP}"
 
-echo -e "\n${CYAN_TEMP}--> 步骤 2: 下载脚本文件...${NC_TEMP}"
+echo -e "\n${CYAN_TEMP}--> 步骤 2: 测试源延迟并下载脚本文件...${NC_TEMP}"
 for file in "${FILES_TO_INSTALL[@]}"; do
     if [[ "$file" == "tool.sh" ]]; then
         download_file "$file" "$TOOL_EXECUTABLE"
