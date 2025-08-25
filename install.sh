@@ -43,7 +43,17 @@ function check_root_installer() {
 
 function ltbx_convert_github_to_gitee() {
     local url="$1"
-    echo "$url" | sed 's/github\.com/gitee.com/g; s/githubusercontent\.com/gitee.com/g'
+    
+    # 处理 raw.githubusercontent.com 格式的URL
+    if [[ "$url" == *"raw.githubusercontent.com"* ]]; then
+        # 从 https://raw.githubusercontent.com/user/repo/branch/file 转换为 https://gitee.com/user/repo/raw/branch/file
+        echo "$url" | sed 's|raw\.githubusercontent\.com/\([^/]*\)/\([^/]*\)/\([^/]*\)/|gitee.com/\1/\2/raw/\3/|g'
+    # 处理 github.com 格式的URL
+    elif [[ "$url" == *"github.com"* ]]; then
+        echo "$url" | sed 's/github\.com/gitee.com/g'
+    else
+        echo "$url"
+    fi
 }
 
 function ltbx_test_url_response_time() {

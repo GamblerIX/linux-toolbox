@@ -13,7 +13,7 @@ bash <(curl -sL https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/i
 或者（国内机子可选）:
 
 ```
-bash <(curl -sL https://raw.gitee.com/GamblerIX/linux-toolbox/main/install.sh)
+bash <(curl -sL https://gitee.com/gamblerix/linux-toolbox/raw/main/install.sh)
 ```
 
 安装成功后，直接执行 `tool` 命令即可启动工具箱。
