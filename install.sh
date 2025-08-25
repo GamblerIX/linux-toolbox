@@ -47,10 +47,12 @@ function ltbx_convert_github_to_gitee() {
     # 处理 raw.githubusercontent.com 格式的URL
     if [[ "$url" == *"raw.githubusercontent.com"* ]]; then
         # 从 https://raw.githubusercontent.com/user/repo/branch/file 转换为 https://gitee.com/user/repo/raw/branch/file
-        echo "$url" | sed 's|raw\.githubusercontent\.com/\([^/]*\)/\([^/]*\)/\([^/]*\)/|gitee.com/\1/\2/raw/\3/|g'
+        # 将 GamblerIX 转换为 gamblerix（Gitee上的用户名是小写）
+        echo "$url" | sed 's|raw\.githubusercontent\.com/\([^/]*\)/\([^/]*\)/\([^/]*\)/|gitee.com/\L\1/\2/raw/\3/|g'
     # 处理 github.com 格式的URL
     elif [[ "$url" == *"github.com"* ]]; then
-        echo "$url" | sed 's/github\.com/gitee.com/g'
+        # 将 GamblerIX 转换为 gamblerix
+        echo "$url" | sed 's/github\.com/gitee.com/g; s/GamblerIX/gamblerix/g'
     else
         echo "$url"
     fi
@@ -107,19 +109,19 @@ function ltbx_select_best_source() {
     local gitee_url
     gitee_url=$(ltbx_convert_github_to_gitee "$github_url")
     
-    printf "  -> 智能源选择: 检测最优下载源...\n"
+    printf "  -> 智能源选择: 检测最优下载源...\n" >&2
     
     # 并行测试多个源的延迟
     local github_response_time gitee_response_time
     local github_status gitee_status
     
     # 测试GitHub源
-    printf "  -> 测试 GitHub 源延迟...\n"
+    printf "  -> 测试 GitHub 源延迟...\n" >&2
     github_response_time=$(ltbx_test_url_response_time "$github_url" "$timeout")
     github_status=$?
     
     # 测试Gitee源
-    printf "  -> 测试 Gitee 源延迟...\n"
+    printf "  -> 测试 Gitee 源延迟...\n" >&2
     gitee_response_time=$(ltbx_test_url_response_time "$gitee_url" "$timeout")
     gitee_status=$?
     
@@ -137,19 +139,19 @@ function ltbx_select_best_source() {
             source_name="Gitee"
             response_time="$gitee_response_time"
         fi
-        printf "  -> \e[1;92m最优源选择: %s (延迟: %sms)\e[0m\n" "$source_name" "$response_time"
+        printf "  -> \e[1;92m最优源选择: %s (延迟: %sms)\e[0m\n" "$source_name" "$response_time" >&2
     elif [ "$github_status" -eq 0 ]; then
         # 仅GitHub可用
         selected_url="$github_url"
         source_name="GitHub"
         response_time="$github_response_time"
-        printf "  -> \e[1;93m使用 GitHub 源 (延迟: %sms)\e[0m\n" "$response_time"
+        printf "  -> \e[1;93m使用 GitHub 源 (延迟: %sms)\e[0m\n" "$response_time" >&2
     elif [ "$gitee_status" -eq 0 ]; then
         # 仅Gitee可用
         selected_url="$gitee_url"
         source_name="Gitee"
         response_time="$gitee_response_time"
-        printf "  -> \e[1;93m使用 Gitee 源 (延迟: %sms)\e[0m\n" "$response_time"
+        printf "  -> \e[1;93m使用 Gitee 源 (延迟: %sms)\e[0m\n" "$response_time" >&2
     else
         # 两个源都不可用
         printf "  -> \e[1;91m错误: 所有源都不可用\e[0m\n" >&2
@@ -189,7 +191,7 @@ function download_file() {
     source_name=$(echo "$source_result" | cut -d'|' -f2)
     
     printf "\e[1;96m  -> 开始下载: %s\e[0m\n" "$(basename "$local_path")"
-    printf "  -> 使用URL: %s\n" "$selected_url"
+    printf "  -> 使用源: %s\n" "$source_name"
     
     # 使用选定的最优源进行下载
     if command -v curl >/dev/null 2>&1; then
@@ -204,8 +206,6 @@ function download_file() {
             fi
         else
             printf "\e[1;91m  -> ✗ 使用 curl 从 %s 源下载失败\e[0m\n" "$source_name" >&2
-            printf "  -> 尝试详细错误信息: \n" >&2
-            curl -sL --connect-timeout 10 --max-time 60 "$selected_url" -o "$local_path" 2>&1 | head -5 >&2
             return 1
         fi
     elif command -v wget >/dev/null 2>&1; then
@@ -220,8 +220,6 @@ function download_file() {
             fi
         else
             printf "\e[1;91m  -> ✗ 使用 wget 从 %s 源下载失败\e[0m\n" "$source_name" >&2
-            printf "  -> 尝试详细错误信息: \n" >&2
-            wget --timeout=10 --tries=1 -O "$local_path" "$selected_url" 2>&1 | head -5 >&2
             return 1
         fi
     else
