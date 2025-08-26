@@ -8,11 +8,10 @@
 ├── tool.sh             # 主执行文件 (交互式入口)
 ├── lib_utils.sh        # 通用工具函数库
 ├── lib_system.sh       # 系统管理与检测
-├── lib_install.sh      # 工具箱安装管理函数库
 ├── lib_network.sh      # 网络工具函数库
 ├── lib_firewall.sh     # 防火墙管理函数库
-├── lib_installer.sh    # 第三方软件安装函数库
-├── version             # 版本信息文件
+├── lib_software.sh     # 第三方软件安装函数库
+├── VERSION             # 版本信息文件
 └── README.md           # 项目说明文档
 ```
 
@@ -38,11 +37,12 @@
 
 安装成功后，直接执行 `tool` 命令即可启动工具箱。
 
-### lib_installer.sh 脚本
+### lib_toolbox.sh 脚本
 
-- **更新工具箱**: 一键更新工具箱（逻辑：先判断延迟最低的源是GitHub源还是Gitee源，然后比较延迟最低的源中version文件中的版本号与本地的版本号，如果大于则执行install.sh）
+- **更新工具箱**: 一键更新工具箱
 - **卸载工具箱**: 卸载工具箱相关
 - **版本查询**: 查看当前工具箱版本
+- **配置管理**: 工具箱配置的查看、编辑、备份、恢复等
 
 ### lib_network.sh 脚本
 
@@ -79,7 +79,7 @@
 - **软件源更换**: 更换为阿里或腾讯或中科大或谷歌或Azure或AWS软件源
 - **核心命令**: 修改 `/etc/apt/sources.list` 或 `/etc/yum.repos.d/`
 
-### lib_installer.sh 脚本
+### lib_software.sh 脚本
 
 > 确认安装后，将退出工具箱以确保安装命令执行成功
 
@@ -100,4 +100,4 @@
 - 支持系统: Ubuntu 18.04+, Debian 9+, CentOS 7+
 - 中文编码问题，要求编码为utf-8
 - 转换符问题，Windows系统下，需要将脚本转换为unix格式，CRLF转换为LF
-- Windows作为开发系统时，注意与实际运行系统Debian系统的差别，Windows默认终端是Powershell，不支持`&&`，且无法直接执行脚本，只能通过`bash -n path`来验证脚本语法问题，且脚本路径引用中的 \ 注意要替换为 / 
+- Windows作为开发系统时，注意与实际运行系统Debian系统的差别，Windows默认终端是Powershell，不支持`&&`，且无法直接执行脚本，只能通过`bash -n path`来验证脚本语法问题，且脚本路径引用中的 \ 注意要替换为 /

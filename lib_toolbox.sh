@@ -62,7 +62,7 @@ install_toolbox() {
     
     mkdir -p "$(dirname "$TOOLBOX_DIR")"
     
-    if [[ -n "$TOOLBOX_REPO" ]] && [[ "$TOOLBOX_REPO" != "https://github.com/your-username/linux-toolbox.git" ]]; then
+    if [[ -n "$TOOLBOX_REPO" ]] && [[ "$TOOLBOX_REPO" != "https://github.com/GamblerIX/linux-toolbox.git" ]]; then
         log_info "从远程仓库克隆..."
         git clone "$TOOLBOX_REPO" "$TOOLBOX_DIR"
     else
@@ -88,7 +88,7 @@ create_toolbox_symlink() {
     
     cat > "$TOOLBOX_BIN" << 'EOF'
 #!/bin/bash
-exec /opt/linux-toolbox/linux-toolbox.sh "$@"
+exec /opt/linux-toolbox/tool.sh "$@"
 EOF
     
     chmod +x "$TOOLBOX_BIN"

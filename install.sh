@@ -11,9 +11,12 @@ NC='\033[0m'
 
 TOOLBOX_DIR="/opt/linux-toolbox"
 BIN_DIR="/usr/local/bin"
-GITHUB_REPO="https://github.com/your-username/linux-toolbox"
-VERSION_URL="https://raw.githubusercontent.com/your-username/linux-toolbox/main/version"
+GITHUB_REPO="https://github.com/GamblerIX/linux-toolbox"
+GITEE_REPO="https://gitee.com/GamblerIX/linux-toolbox"
+GITHUB_RAW="https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main"
+GITEE_RAW="https://gitee.com/GamblerIX/linux-toolbox/raw/main"
 TEMP_DIR="/tmp/linux-toolbox-install"
+USE_SOURCE="auto"
 
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -34,12 +37,10 @@ log_error() {
 show_banner() {
     clear
     echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                Linux 工具箱 安装程序                        ║"
-    echo "║                                                              ║"
-    echo "║              专为 Debian 系统运维设计                       ║"
-    echo "║                                                              ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo "╔════════════════════╗"
+    echo " Linux 工具箱 安装程序
+    echo " By GamblerIX
+    echo "╚════════════════════╝"
     echo -e "${NC}"
     echo
 }
@@ -74,12 +75,67 @@ check_system() {
     fi
 }
 
+test_source_speed() {
+    local url=$1
+    local timeout=5
+    
+    if command -v curl &> /dev/null; then
+        local time=$(curl -o /dev/null -s -w "%{time_total}" --connect-timeout $timeout "$url" 2>/dev/null || echo "999")
+        echo "$time"
+    elif command -v wget &> /dev/null; then
+        local start=$(date +%s.%N)
+        wget -q --timeout=$timeout --tries=1 -O /dev/null "$url" >/dev/null 2>&1
+        if [[ $? -eq 0 ]]; then
+            local end=$(date +%s.%N)
+            echo "$(echo "$end - $start" | bc 2>/dev/null || echo "999")"
+        else
+            echo "999"
+        fi
+    else
+        echo "999"
+    fi
+}
+
+select_best_source() {
+    if [[ "$USE_SOURCE" == "github" ]]; then
+        echo "github"
+        return
+    elif [[ "$USE_SOURCE" == "gitee" ]]; then
+        echo "gitee"
+        return
+    fi
+    
+    log_info "检测最佳下载源..."
+    
+    local github_speed=$(test_source_speed "$GITHUB_RAW/VERSION")
+    local gitee_speed=$(test_source_speed "$GITEE_RAW/VERSION")
+    
+    log_info "GitHub延迟: ${github_speed}s, Gitee延迟: ${gitee_speed}s"
+    
+    if (( $(echo "$github_speed < $gitee_speed" | bc -l 2>/dev/null || echo "0") )); then
+        log_info "选择GitHub源 (延迟更低)"
+        echo "github"
+    else
+        log_info "选择Gitee源 (延迟更低)"
+        echo "gitee"
+    fi
+}
+
 get_latest_version() {
+    local source=$(select_best_source)
+    local version_url
+    
+    if [[ "$source" == "github" ]]; then
+        version_url="$GITHUB_RAW/VERSION"
+    else
+        version_url="$GITEE_RAW/VERSION"
+    fi
+    
     local version
     if command -v curl &> /dev/null; then
-        version=$(curl -s "$VERSION_URL" 2>/dev/null)
+        version=$(curl -s "$version_url" 2>/dev/null)
     elif command -v wget &> /dev/null; then
-        version=$(wget -qO- "$VERSION_URL" 2>/dev/null)
+        version=$(wget -qO- "$version_url" 2>/dev/null)
     fi
     
     if [[ -z "$version" ]]; then
@@ -90,8 +146,8 @@ get_latest_version() {
 }
 
 get_current_version() {
-    if [[ -f "$TOOLBOX_DIR/version" ]]; then
-        cat "$TOOLBOX_DIR/version"
+    if [[ -f "$TOOLBOX_DIR/VERSION" ]]; then
+        cat "$TOOLBOX_DIR/VERSION"
     else
         echo "0.0.0"
     fi
@@ -132,34 +188,52 @@ download_toolbox() {
     mkdir -p "$TEMP_DIR"
     cd "$TEMP_DIR"
     
+    local source=$(select_best_source)
+    local repo_url
+    
+    if [[ "$source" == "github" ]]; then
+        repo_url="$GITHUB_REPO"
+    else
+        repo_url="$GITEE_REPO"
+    fi
+    
     if command -v git &> /dev/null; then
-        log_info "使用 Git 克隆仓库..."
-        git clone "$GITHUB_REPO" . || {
+        log_info "使用 Git 克隆仓库 ($source)..."
+        git clone "$repo_url" . || {
             log_warn "Git 克隆失败，尝试使用 curl 下载"
-            download_with_curl
+            download_with_curl "$source"
         }
     else
-        download_with_curl
+        download_with_curl "$source"
     fi
 }
 
 download_with_curl() {
-    log_info "使用 curl 下载工具箱文件..."
+    local source=${1:-$(select_best_source)}
+    local base_url
+    
+    if [[ "$source" == "github" ]]; then
+        base_url="$GITHUB_RAW"
+    else
+        base_url="$GITEE_RAW"
+    fi
+    
+    log_info "使用 curl 下载工具箱文件 ($source)..."
     
     local files=(
-        "version"
+        "VERSION"
         "lib_utils.sh"
         "lib_system.sh"
         "lib_network.sh"
         "lib_firewall.sh"
         "lib_software.sh"
         "lib_toolbox.sh"
-        "linux-toolbox.sh"
+        "tool.sh"
         "README.md"
     )
     
     for file in "${files[@]}"; do
-        local url="https://raw.githubusercontent.com/your-username/linux-toolbox/main/$file"
+        local url="$base_url/$file"
         log_info "下载 $file..."
         
         if command -v curl &> /dev/null; then
@@ -190,14 +264,13 @@ install_toolbox() {
     chmod +x "$TOOLBOX_DIR"/*.sh
     
     log_info "创建系统链接..."
-    ln -sf "$TOOLBOX_DIR/linux-toolbox.sh" "$BIN_DIR/linux-toolbox"
-    ln -sf "$TOOLBOX_DIR/linux-toolbox.sh" "$BIN_DIR/toolbox"
+    ln -sf "$TOOLBOX_DIR/tool.sh" "$BIN_DIR/tool"
     
     log_info "设置权限..."
     chown -R root:root "$TOOLBOX_DIR"
     chmod 755 "$TOOLBOX_DIR"
     chmod 644 "$TOOLBOX_DIR"/lib_*.sh
-    chmod 755 "$TOOLBOX_DIR/linux-toolbox.sh"
+    chmod 755 "$TOOLBOX_DIR/tool.sh"
 }
 
 create_desktop_entry() {
@@ -207,7 +280,7 @@ create_desktop_entry() {
 [Desktop Entry]
 Name=Linux Toolbox
 Comment=Linux系统管理工具箱
-Exec=gnome-terminal -- linux-toolbox
+Exec=gnome-terminal -- tool
 Icon=utilities-terminal
 Terminal=false
 Type=Application
@@ -245,12 +318,11 @@ show_completion_info() {
     log_success "Linux 工具箱安装完成！"
     echo
     echo -e "${CYAN}使用方法:${NC}"
-    echo "  linux-toolbox    # 启动工具箱"
-    echo "  toolbox          # 启动工具箱 (简短命令)"
+    echo "  tool             # 启动工具箱"
     echo
     echo -e "${CYAN}安装位置:${NC}"
     echo "  程序目录: $TOOLBOX_DIR"
-    echo "  可执行文件: $BIN_DIR/linux-toolbox"
+    echo "  可执行文件: $BIN_DIR/tool"
     echo
     echo -e "${CYAN}功能模块:${NC}"
     echo "  • 系统管理 - 用户管理、软件源配置等"
@@ -259,7 +331,7 @@ show_completion_info() {
     echo "  • 软件管理 - Docker、Nginx等软件安装"
     echo "  • 工具箱管理 - 更新、配置管理"
     echo
-    echo -e "${GREEN}现在可以运行 'linux-toolbox' 开始使用！${NC}"
+    echo -e "${GREEN}现在可以运行 'tool' 开始使用！${NC}"
     echo
 }
 
@@ -287,12 +359,11 @@ uninstall_toolbox() {
     fi
     
     log_info "停止相关服务..."
-    pkill -f linux-toolbox 2>/dev/null || true
+    pkill -f tool 2>/dev/null || true
     
     log_info "删除文件..."
     rm -rf "$TOOLBOX_DIR"
-    rm -f "$BIN_DIR/linux-toolbox"
-    rm -f "$BIN_DIR/toolbox"
+    rm -f "$BIN_DIR/tool"
     rm -f "/usr/share/applications/linux-toolbox.desktop"
     rm -f "/etc/cron.weekly/linux-toolbox-update"
     
@@ -333,10 +404,14 @@ show_help() {
     echo "  --update         更新工具箱"
     echo "  --uninstall      卸载工具箱"
     echo "  --check-update   仅检查更新"
+    echo "  --github         强制使用GitHub源"
+    echo "  --gitee          强制使用Gitee源"
     echo "  --help           显示此帮助信息"
     echo
     echo "示例:"
-    echo "  bash install.sh                # 安装工具箱"
+    echo "  bash install.sh                # 安装工具箱 (自动选择最佳源)"
+    echo "  bash install.sh --github       # 强制使用GitHub源安装"
+    echo "  bash install.sh --gitee        # 强制使用Gitee源安装"
     echo "  bash install.sh --update       # 更新工具箱"
     echo "  bash install.sh --uninstall    # 卸载工具箱"
     echo
@@ -345,32 +420,39 @@ show_help() {
 main() {
     local action="install"
     
-    case "${1:-}" in
-        --install)
-            action="install"
-            ;;
-        --update)
-            action="update"
-            ;;
-        --uninstall)
-            action="uninstall"
-            ;;
-        --check-update)
-            action="check-update"
-            ;;
-        --help|-h)
-            show_help
-            exit 0
-            ;;
-        "")
-            action="install"
-            ;;
-        *)
-            log_error "未知选项: $1"
-            show_help
-            exit 1
-            ;;
-    esac
+    # 处理参数
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --install)
+                action="install"
+                ;;
+            --update)
+                action="update"
+                ;;
+            --uninstall)
+                action="uninstall"
+                ;;
+            --check-update)
+                action="check-update"
+                ;;
+            --github)
+                USE_SOURCE="github"
+                ;;
+            --gitee)
+                USE_SOURCE="gitee"
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                log_error "未知选项: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+        shift
+    done
     
     if [[ "$action" == "uninstall" ]]; then
         uninstall_toolbox

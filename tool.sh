@@ -14,14 +14,10 @@ VERSION=$(cat "$SCRIPT_DIR/version" 2>/dev/null || echo "1.0.0")
 show_banner() {
     clear
     echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                    Linux 系统工具箱                         ║"
-    echo "║                                                              ║"
-    echo "║                    版本: $VERSION                              ║"
-    echo "║                                                              ║"
-    echo "║              专为 Debian 系统运维设计                       ║"
-    echo "║                                                              ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo "╔═══════════════╗"
+    echo " Linux 系统工具箱
+    echo " 版本: $VERSION
+    echo "╚═══════════════╝"
     echo -e "${NC}"
     echo
 }
@@ -56,7 +52,7 @@ main_menu() {
         
         case $choice in
             0) 
-                log_info "感谢使用 Linux 工具箱！"
+                log_info "已退出工具箱"
                 exit 0
                 ;;
             1) system_management ;;
