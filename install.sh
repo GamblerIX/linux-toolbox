@@ -1,284 +1,462 @@
-
 #!/bin/bash
 
-set -Eeuo pipefail
-IFS=$'\n\t'
+set -e
 
-# 错误处理函数
-function error_handler() {
-    local line_no=$1
-    printf "${RED_TEMP:-\e[1;91m}错误: 安装脚本在第 %s 行执行失败${NC_TEMP:-\e[0m}\n" "$line_no" >&2
-    exit 1
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+TOOLBOX_DIR="/opt/linux-toolbox"
+BIN_DIR="/usr/local/bin"
+GITHUB_REPO="https://github.com/your-username/linux-toolbox"
+VERSION_URL="https://raw.githubusercontent.com/your-username/linux-toolbox/main/version"
+TEMP_DIR="/tmp/linux-toolbox-install"
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-trap 'error_handler ${LINENO}' ERR
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
 
-REPO_USER="GamblerIX"
-REPO_NAME="linux-toolbox"
-BRANCH="main"
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
 
-TOOL_EXECUTABLE="/usr/local/bin/tool"
-LIB_DIR="/usr/local/lib/linux-toolbox"
-CONFIG_DIR="/etc/linux-toolbox"
-CONFIG_FILE="$CONFIG_DIR/config.cfg"
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
 
-FILES_TO_INSTALL=(
-    "tool.sh" "config.sh" "lib_utils.sh" "lib_system.sh" "lib_ui.sh"
-    "lib_network.sh" "lib_firewall.sh" "lib_installer.sh" "lib_superbench.sh" "lib_install.sh"
-)
+show_banner() {
+    clear
+    echo -e "${CYAN}"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                Linux 工具箱 安装程序                        ║"
+    echo "║                                                              ║"
+    echo "║              专为 Debian 系统运维设计                       ║"
+    echo "║                                                              ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo
+}
 
-RED_TEMP=$'\e[1;91m'
-GREEN_TEMP=$'\e[1;92m'
-YELLOW_TEMP=$'\e[1;93m'
-CYAN_TEMP=$'\e[1;96m'
-NC_TEMP=$'\e[0m'
-
-function check_root_installer() {
-    if [ "$(id -u)" -ne 0 ]; then
-        echo -e "${RED_TEMP}错误: 此安装脚本需要 root 权限运行。${NC_TEMP}"
-        echo -e "${YELLOW_TEMP}请尝试: curl ... | sudo bash${NC_TEMP}"
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "此脚本需要root权限运行"
+        log_info "请使用: sudo bash install.sh"
         exit 1
     fi
 }
 
-function ltbx_convert_github_to_gitee() {
-    local url="$1"
+check_system() {
+    if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
+        log_error "需要 curl 或 wget 来下载文件"
+        log_info "正在安装 curl..."
+        
+        if command -v apt-get &> /dev/null; then
+            apt-get update && apt-get install -y curl
+        elif command -v yum &> /dev/null; then
+            yum install -y curl
+        elif command -v dnf &> /dev/null; then
+            dnf install -y curl
+        else
+            log_error "无法自动安装 curl，请手动安装后重试"
+            exit 1
+        fi
+    fi
     
-    # 处理 raw.githubusercontent.com 格式的URL
-    if [[ "$url" == *"raw.githubusercontent.com"* ]]; then
-        # 从 https://raw.githubusercontent.com/user/repo/branch/file 转换为 https://gitee.com/user/repo/raw/branch/file
-        # 将 GamblerIX 转换为 gamblerix（Gitee上的用户名是小写）
-        echo "$url" | sed 's|raw\.githubusercontent\.com/\([^/]*\)/\([^/]*\)/\([^/]*\)/|gitee.com/\L\1/\2/raw/\3/|g'
-    # 处理 github.com 格式的URL
-    elif [[ "$url" == *"github.com"* ]]; then
-        # 将 GamblerIX 转换为 gamblerix
-        echo "$url" | sed 's/github\.com/gitee.com/g; s/GamblerIX/gamblerix/g'
-    else
-        echo "$url"
+    if ! command -v git &> /dev/null; then
+        log_warn "Git 未安装，将使用 curl/wget 下载"
     fi
 }
 
-function ltbx_test_url_response_time() {
-    local url="$1"
-    local timeout="${2:-3}"
+get_latest_version() {
+    local version
+    if command -v curl &> /dev/null; then
+        version=$(curl -s "$VERSION_URL" 2>/dev/null)
+    elif command -v wget &> /dev/null; then
+        version=$(wget -qO- "$VERSION_URL" 2>/dev/null)
+    fi
     
-    local start_time end_time response_time
-    start_time=$(date +%s%3N 2>/dev/null || date +%s)
+    if [[ -z "$version" ]]; then
+        version="1.0.0"
+    fi
     
-    if command -v curl &>/dev/null; then
-        if curl -s --connect-timeout "$timeout" --max-time "$timeout" -I "$url" >/dev/null 2>&1; then
-            end_time=$(date +%s%3N 2>/dev/null || date +%s)
-            if [[ ${#start_time} -eq 13 ]] && [[ ${#end_time} -eq 13 ]]; then
-                response_time=$(((end_time - start_time)))
-                echo "$response_time"
-            else
-                response_time=$((end_time - start_time))
-                echo "${response_time}000"
-            fi
-            return 0
-        else
-            echo "999999"
-            return 1
-        fi
-    elif command -v wget &>/dev/null; then
-        if wget --timeout="$timeout" --tries=1 -q --spider "$url" >/dev/null 2>&1; then
-            end_time=$(date +%s%3N 2>/dev/null || date +%s)
-            if [[ ${#start_time} -eq 13 ]] && [[ ${#end_time} -eq 13 ]]; then
-                response_time=$(((end_time - start_time)))
-                echo "$response_time"
-            else
-                response_time=$((end_time - start_time))
-                echo "${response_time}000"
-            fi
-            return 0
-        else
-            echo "999999"
-            return 1
-        fi
+    echo "$version"
+}
+
+get_current_version() {
+    if [[ -f "$TOOLBOX_DIR/version" ]]; then
+        cat "$TOOLBOX_DIR/version"
     else
-        printf "\e[1;91m错误: curl 和 wget 都未安装\e[0m\n" >&2
-        echo "999999"
-        return 1
+        echo "0.0.0"
     fi
 }
 
-function ltbx_select_best_source() {
-    local github_url="$1"
-    local gitee_url="$2"
-    local timeout="${3:-3}"
+compare_versions() {
+    local version1=$1
+    local version2=$2
     
-    printf "  -> 智能源选择: 检测最优下载源...\n" >&2
-    
-    # 并行测试多个源的延迟
-    local github_response_time gitee_response_time
-    local github_status gitee_status
-    
-    # 测试GitHub源
-    printf "  -> 测试 GitHub 源延迟...\n" >&2
-    github_response_time=$(ltbx_test_url_response_time "$github_url" "$timeout")
-    github_status=$?
-    
-    # 测试Gitee源
-    printf "  -> 测试 Gitee 源延迟...\n" >&2
-    gitee_response_time=$(ltbx_test_url_response_time "$gitee_url" "$timeout")
-    gitee_status=$?
-    
-    # 智能选择最优源
-    local selected_url source_name response_time
-    
-    if [ "$github_status" -eq 0 ] && [ "$gitee_status" -eq 0 ]; then
-        # 两个源都可用，选择延迟更低的
-        if [ "$github_response_time" -le "$gitee_response_time" ]; then
-            selected_url="$github_url"
-            source_name="GitHub"
-            response_time="$github_response_time"
-        else
-            selected_url="$gitee_url"
-            source_name="Gitee"
-            response_time="$gitee_response_time"
-        fi
-        printf "  -> \e[1;92m最优源选择: %s (延迟: %sms)\e[0m\n" "$source_name" "$response_time" >&2
-    elif [ "$github_status" -eq 0 ]; then
-        # 仅GitHub可用
-        selected_url="$github_url"
-        source_name="GitHub"
-        response_time="$github_response_time"
-        printf "  -> \e[1;93m使用 GitHub 源 (延迟: %sms)\e[0m\n" "$response_time" >&2
-    elif [ "$gitee_status" -eq 0 ]; then
-        # 仅Gitee可用
-        selected_url="$gitee_url"
-        source_name="Gitee"
-        response_time="$gitee_response_time"
-        printf "  -> \e[1;93m使用 Gitee 源 (延迟: %sms)\e[0m\n" "$response_time" >&2
-    else
-        # 两个源都不可用
-        printf "  -> \e[1;91m错误: 所有源都不可用\e[0m\n" >&2
-        return 1
+    if [[ "$version1" == "$version2" ]]; then
+        return 0
     fi
     
-    # 返回选择的URL和源名称
-    echo "$selected_url|$source_name"
+    local IFS=.
+    local i ver1=($version1) ver2=($version2)
+    
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do
+        ver1[i]=0
+    done
+    
+    for ((i=0; i<${#ver1[@]}; i++)); do
+        if [[ -z ${ver2[i]} ]]; then
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]})); then
+            return 1
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]})); then
+            return 2
+        fi
+    done
     return 0
 }
 
-function download_file() {
-    local remote_path="${1:-}"
-    local local_path="${2:-}"
-    local timeout="${3:-3}"
+download_toolbox() {
+    log_info "创建临时目录..."
+    rm -rf "$TEMP_DIR"
+    mkdir -p "$TEMP_DIR"
+    cd "$TEMP_DIR"
     
-    if [[ -z "$remote_path" ]] || [[ -z "$local_path" ]]; then
-        printf "\e[1;91m错误: 下载参数不能为空\e[0m\n" >&2
-        return 1
-    fi
-    
-    local base_url="https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/${BRANCH}"
-    local github_url="${base_url}/${remote_path}"
-    local gitee_url
-    gitee_url=$(ltbx_convert_github_to_gitee "$github_url")
-
-    printf "  -> 正在下载 %s...\n" "$remote_path"
-
-    # 使用智能源选择
-    local source_result
-    source_result=$(ltbx_select_best_source "$github_url" "$gitee_url" "$timeout")
-    if [ $? -ne 0 ]; then
-        printf "\e[1;91m源选择失败\e[0m\n" >&2
-        return 1
-    fi
-    
-    local selected_url source_name
-    selected_url=$(echo "$source_result" | cut -d'|' -f1)
-    source_name=$(echo "$source_result" | cut -d'|' -f2)
-    
-    printf "\e[1;96m  -> 开始下载: %s\e[0m\n" "$(basename "$local_path")"
-    printf "  -> 使用源: %s\n" "$source_name"
-    
-    # 使用选定的最优源进行下载
-    if command -v curl >/dev/null 2>&1; then
-        printf "  -> 使用 curl 下载...\n"
-        if curl -sL --connect-timeout 10 --max-time 60 "$selected_url" -o "$local_path" 2>/dev/null; then
-            if [[ -s "$local_path" ]]; then
-                printf "  -> \e[1;92m✓ 使用 curl 从 %s 源下载成功\e[0m\n" "$source_name"
-            else
-                printf "\e[1;91m  -> ✗ 下载的文件为空\e[0m\n" >&2
-                rm -f "$local_path" 2>/dev/null || true
-                return 1
-            fi
-        else
-            printf "\e[1;91m  -> ✗ 使用 curl 从 %s 源下载失败\e[0m\n" "$source_name" >&2
-            return 1
-        fi
-    elif command -v wget >/dev/null 2>&1; then
-        printf "  -> 使用 wget 下载...\n"
-        if wget --timeout=10 --tries=3 -qO "$local_path" "$selected_url" 2>/dev/null; then
-            if [[ -s "$local_path" ]]; then
-                printf "  -> \e[1;92m✓ 使用 wget 从 %s 源下载成功\e[0m\n" "$source_name"
-            else
-                printf "\e[1;91m  -> ✗ 下载的文件为空\e[0m\n" >&2
-                rm -f "$local_path" 2>/dev/null || true
-                return 1
-            fi
-        else
-            printf "\e[1;91m  -> ✗ 使用 wget 从 %s 源下载失败\e[0m\n" "$source_name" >&2
-            return 1
-        fi
+    if command -v git &> /dev/null; then
+        log_info "使用 Git 克隆仓库..."
+        git clone "$GITHUB_REPO" . || {
+            log_warn "Git 克隆失败，尝试使用 curl 下载"
+            download_with_curl
+        }
     else
-        printf "\e[1;91m致命错误: curl 和 wget 都未安装\e[0m\n" >&2
-        return 1
+        download_with_curl
     fi
-    
-    return 0
 }
 
-echo -e "${GREEN_TEMP}===== 开始安装/更新 Linux 工具箱 =====${NC_TEMP}"
-check_root_installer
+download_with_curl() {
+    log_info "使用 curl 下载工具箱文件..."
+    
+    local files=(
+        "version"
+        "lib_utils.sh"
+        "lib_system.sh"
+        "lib_network.sh"
+        "lib_firewall.sh"
+        "lib_software.sh"
+        "lib_toolbox.sh"
+        "linux-toolbox.sh"
+        "README.md"
+    )
+    
+    for file in "${files[@]}"; do
+        local url="https://raw.githubusercontent.com/your-username/linux-toolbox/main/$file"
+        log_info "下载 $file..."
+        
+        if command -v curl &> /dev/null; then
+            curl -fsSL "$url" -o "$file" || {
+                log_error "下载 $file 失败"
+                return 1
+            }
+        elif command -v wget &> /dev/null; then
+            wget -q "$url" -O "$file" || {
+                log_error "下载 $file 失败"
+                return 1
+            }
+        fi
+    done
+}
 
-echo -e "${CYAN_TEMP}--> 步骤 1: 创建目录...${NC_TEMP}"
-mkdir -p "${LIB_DIR}"; mkdir -p "${CONFIG_DIR}"
-echo -e "${GREEN_TEMP}目录准备就绪。${NC_TEMP}"
-
-echo -e "\n${CYAN_TEMP}--> 步骤 2: 测试源延迟并下载脚本文件...${NC_TEMP}"
-for file in "${FILES_TO_INSTALL[@]}"; do
-    if [[ "$file" == "tool.sh" ]]; then
-        download_file "$file" "$TOOL_EXECUTABLE"
-    else
-        download_file "$file" "${LIB_DIR}/${file}"
+install_toolbox() {
+    log_info "安装工具箱到 $TOOLBOX_DIR..."
+    
+    if [[ -d "$TOOLBOX_DIR" ]]; then
+        log_info "备份现有安装..."
+        mv "$TOOLBOX_DIR" "${TOOLBOX_DIR}.backup.$(date +%Y%m%d-%H%M%S)"
     fi
-done
+    
+    mkdir -p "$TOOLBOX_DIR"
+    cp -r "$TEMP_DIR"/* "$TOOLBOX_DIR/"
+    
+    chmod +x "$TOOLBOX_DIR"/*.sh
+    
+    log_info "创建系统链接..."
+    ln -sf "$TOOLBOX_DIR/linux-toolbox.sh" "$BIN_DIR/linux-toolbox"
+    ln -sf "$TOOLBOX_DIR/linux-toolbox.sh" "$BIN_DIR/toolbox"
+    
+    log_info "设置权限..."
+    chown -R root:root "$TOOLBOX_DIR"
+    chmod 755 "$TOOLBOX_DIR"
+    chmod 644 "$TOOLBOX_DIR"/lib_*.sh
+    chmod 755 "$TOOLBOX_DIR/linux-toolbox.sh"
+}
 
-source "${LIB_DIR}/config.sh"
-
-echo -e "\n${CYAN}--> 步骤 3: 设置文件权限...${NC}"
-chmod +x "$TOOL_EXECUTABLE"
-chmod 644 ${LIB_DIR}/*
-echo -e "${GREEN}权限设置完毕。${NC}"
-
-echo -e "\n${CYAN}--> 步骤 4: 初始化配置...${NC}"
-if [ ! -f "$CONFIG_FILE" ]; then
-    cat > "$CONFIG_FILE" << EOF
-
-TOOLBOX_INSTALL_DIR="/etc/linux-toolbox"
-CONFIG_FILE="\$TOOLBOX_INSTALL_DIR/config.cfg"
-TOOLBOX_LIB_DIR="/usr/local/lib/linux-toolbox"
-TOOL_EXECUTABLE="/usr/local/bin/tool"
-
-INSTALLED=true
-OS_TYPE=""
-OS_CODENAME=""
-OS_VERSION=""
+create_desktop_entry() {
+    if [[ -d "/usr/share/applications" ]]; then
+        log_info "创建桌面快捷方式..."
+        cat > /usr/share/applications/linux-toolbox.desktop << EOF
+[Desktop Entry]
+Name=Linux Toolbox
+Comment=Linux系统管理工具箱
+Exec=gnome-terminal -- linux-toolbox
+Icon=utilities-terminal
+Terminal=false
+Type=Application
+Categories=System;Administration;
+Keywords=linux;system;admin;toolbox;
 EOF
-else
-    if grep -q "^INSTALLED=" "$CONFIG_FILE"; then
-        sed -i "s/^INSTALLED=.*/INSTALLED=true/" "$CONFIG_FILE"
-    else
-        echo "INSTALLED=true" >> "$CONFIG_FILE"
+        chmod 644 /usr/share/applications/linux-toolbox.desktop
     fi
-fi
-echo -e "${GREEN}配置初始化完成。${NC}"
+}
 
-echo -e "\n${GREEN}===========================================${NC}"
-echo -e "${GREEN}    Linux 工具箱安装/更新 成功！  ${NC}"
-echo -e "${GREEN}===========================================${NC}"
-echo -e "${YELLOW}现在你可以通过输入以下命令来运行它:${NC}"
-echo -e "${CYAN}\n tool\n${NC}"
-exit 0
+setup_auto_update() {
+    log_info "设置自动更新检查..."
+    
+    cat > /etc/cron.weekly/linux-toolbox-update << 'EOF'
+#!/bin/bash
+
+TOOLBOX_DIR="/opt/linux-toolbox"
+LOG_FILE="/var/log/linux-toolbox-update.log"
+
+if [[ -f "$TOOLBOX_DIR/install.sh" ]]; then
+    echo "$(date): 检查工具箱更新" >> "$LOG_FILE"
+    bash "$TOOLBOX_DIR/install.sh" --check-update >> "$LOG_FILE" 2>&1
+fi
+EOF
+    
+    chmod +x /etc/cron.weekly/linux-toolbox-update
+}
+
+cleanup() {
+    log_info "清理临时文件..."
+    rm -rf "$TEMP_DIR"
+}
+
+show_completion_info() {
+    log_success "Linux 工具箱安装完成！"
+    echo
+    echo -e "${CYAN}使用方法:${NC}"
+    echo "  linux-toolbox    # 启动工具箱"
+    echo "  toolbox          # 启动工具箱 (简短命令)"
+    echo
+    echo -e "${CYAN}安装位置:${NC}"
+    echo "  程序目录: $TOOLBOX_DIR"
+    echo "  可执行文件: $BIN_DIR/linux-toolbox"
+    echo
+    echo -e "${CYAN}功能模块:${NC}"
+    echo "  • 系统管理 - 用户管理、软件源配置等"
+    echo "  • 网络工具 - 网速测试、SSH管理等"
+    echo "  • 防火墙管理 - UFW/iptables管理"
+    echo "  • 软件管理 - Docker、Nginx等软件安装"
+    echo "  • 工具箱管理 - 更新、配置管理"
+    echo
+    echo -e "${GREEN}现在可以运行 'linux-toolbox' 开始使用！${NC}"
+    echo
+}
+
+show_update_info() {
+    local current_version=$1
+    local latest_version=$2
+    
+    log_success "工具箱更新完成！"
+    echo
+    echo -e "${CYAN}版本信息:${NC}"
+    echo "  旧版本: $current_version"
+    echo "  新版本: $latest_version"
+    echo
+    echo -e "${GREEN}更新已完成，可以继续使用工具箱！${NC}"
+    echo
+}
+
+uninstall_toolbox() {
+    log_warn "准备卸载 Linux 工具箱..."
+    
+    read -p "确定要卸载吗？这将删除所有工具箱文件 [y/N]: " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        log_info "取消卸载"
+        exit 0
+    fi
+    
+    log_info "停止相关服务..."
+    pkill -f linux-toolbox 2>/dev/null || true
+    
+    log_info "删除文件..."
+    rm -rf "$TOOLBOX_DIR"
+    rm -f "$BIN_DIR/linux-toolbox"
+    rm -f "$BIN_DIR/toolbox"
+    rm -f "/usr/share/applications/linux-toolbox.desktop"
+    rm -f "/etc/cron.weekly/linux-toolbox-update"
+    
+    log_success "Linux 工具箱已完全卸载"
+}
+
+check_update_only() {
+    local current_version=$(get_current_version)
+    local latest_version=$(get_latest_version)
+    
+    echo "当前版本: $current_version"
+    echo "最新版本: $latest_version"
+    
+    compare_versions "$latest_version" "$current_version"
+    case $? in
+        1)
+            echo "有新版本可用！"
+            exit 1
+            ;;
+        0)
+            echo "已是最新版本"
+            exit 0
+            ;;
+        2)
+            echo "当前版本较新"
+            exit 0
+            ;;
+    esac
+}
+
+show_help() {
+    echo "Linux 工具箱安装程序"
+    echo
+    echo "用法: $0 [选项]"
+    echo
+    echo "选项:"
+    echo "  --install        安装工具箱 (默认)"
+    echo "  --update         更新工具箱"
+    echo "  --uninstall      卸载工具箱"
+    echo "  --check-update   仅检查更新"
+    echo "  --help           显示此帮助信息"
+    echo
+    echo "示例:"
+    echo "  bash install.sh                # 安装工具箱"
+    echo "  bash install.sh --update       # 更新工具箱"
+    echo "  bash install.sh --uninstall    # 卸载工具箱"
+    echo
+}
+
+main() {
+    local action="install"
+    
+    case "${1:-}" in
+        --install)
+            action="install"
+            ;;
+        --update)
+            action="update"
+            ;;
+        --uninstall)
+            action="uninstall"
+            ;;
+        --check-update)
+            action="check-update"
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        "")
+            action="install"
+            ;;
+        *)
+            log_error "未知选项: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+    
+    if [[ "$action" == "uninstall" ]]; then
+        uninstall_toolbox
+        exit 0
+    fi
+    
+    if [[ "$action" == "check-update" ]]; then
+        check_update_only
+        exit 0
+    fi
+    
+    show_banner
+    check_root
+    check_system
+    
+    local current_version=$(get_current_version)
+    local latest_version=$(get_latest_version)
+    
+    if [[ "$action" == "update" ]]; then
+        if [[ ! -d "$TOOLBOX_DIR" ]]; then
+            log_error "工具箱未安装，请先运行安装"
+            exit 1
+        fi
+        
+        compare_versions "$latest_version" "$current_version"
+        case $? in
+            1)
+                log_info "发现新版本: $latest_version (当前: $current_version)"
+                ;;
+            0)
+                log_info "已是最新版本: $current_version"
+                exit 0
+                ;;
+            2)
+                log_warn "当前版本 ($current_version) 比最新版本 ($latest_version) 更新"
+                exit 0
+                ;;
+        esac
+    fi
+    
+    if [[ "$action" == "install" && -d "$TOOLBOX_DIR" ]]; then
+        log_warn "检测到已安装的工具箱"
+        compare_versions "$latest_version" "$current_version"
+        case $? in
+            1)
+                log_info "发现新版本，将进行更新"
+                action="update"
+                ;;
+            0)
+                log_info "已安装最新版本"
+                read -p "是否重新安装？ [y/N]: " confirm
+                if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+                    log_info "取消安装"
+                    exit 0
+                fi
+                ;;
+            2)
+                log_warn "当前版本较新，继续安装可能会降级"
+                read -p "确定继续吗？ [y/N]: " confirm
+                if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+                    log_info "取消安装"
+                    exit 0
+                fi
+                ;;
+        esac
+    fi
+    
+    log_info "开始${action}工具箱..."
+    
+    download_toolbox
+    install_toolbox
+    create_desktop_entry
+    
+    if [[ "$action" == "install" ]]; then
+        setup_auto_update
+    fi
+    
+    cleanup
+    
+    if [[ "$action" == "update" ]]; then
+        show_update_info "$current_version" "$latest_version"
+    else
+        show_completion_info
+    fi
+}
+
+trap 'echo -e "\n${YELLOW}安装已取消${NC}"; cleanup; exit 1' INT
+
+main "$@"
