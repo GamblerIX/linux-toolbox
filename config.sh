@@ -46,7 +46,7 @@ function ltbx_error_handler() {
     local func_name=$3
     local exit_code=$4
 
-    printf "${RED}错误: 脚本执行失败${NC}\n" >&2
+    printf "${RED}错误: 脚本执行失败${NC}\n" >&2
     printf "${YELLOW}文件: %s${NC}\n" "$source_file" >&2
     printf "${YELLOW}行号: %s${NC}\n" "$line_no" >&2
     printf "${YELLOW}函数: %s${NC}\n" "$func_name" >&2
@@ -64,7 +64,7 @@ function ltbx_log() {
     local message="$*"
 
     case "$level" in
-        "ERROR") printf "${RED}[错误]${NC} %s\n" "$message" >&2 ;;
+        "ERROR") printf "${RED}[错误]${NC} %s\n" "$message" >&2 ;;
         "WARN")  printf "${YELLOW}[警告]${NC} %s\n" "$message" >&2 ;;
         "INFO")  printf "${GREEN}[信息]${NC} %s\n" "$message" ;;
         "DEBUG") [[ "${LTBX_DEBUG:-}" == "true" ]] && printf "${CYAN}[调试]${NC} %s\n" "$message" ;;

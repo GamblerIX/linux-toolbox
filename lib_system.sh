@@ -150,7 +150,7 @@ function ltbx_manage_tools_menu() {
     printf "${GREEN}2. 用户管理${NC}\n"
     printf "${GREEN}3. 内核管理${NC}\n"
     printf "${GREEN}0. 返回主菜单${NC}\n"
-    printf "${CYAN}==============================================${NC}\n"
+    printf "${CYAN}========================${NC}\n"
 
     if [ "${LTBX_NON_INTERACTIVE:-false}" = "true" ]; then
         ltbx_log "非交互模式，返回主菜单" "info"
@@ -380,7 +380,7 @@ function ltbx_kernel_management_menu() {
     printf "${GREEN}2. 列出所有已安装内核${NC}\n"
     printf "${GREEN}3. 清理旧内核${NC}\n"
     printf "${GREEN}0. 返回上一级${NC}\n"
-    printf "${CYAN}==============================================${NC}\n"
+    printf "${CYAN}==================${NC}\n"
 
     read -p "请输入选项 [0-3]: " choice < /dev/tty
     case $choice in

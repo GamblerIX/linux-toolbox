@@ -13,20 +13,20 @@ function ltbx_installer_menu() {
 
     local choice
     ltbx_show_header
-    printf "${YELLOW}====== 一键安装程序 ======${NC}\n"
-    printf "${CYAN}--- 堡塔面板 (BT Panel) ---${NC}\n"
-    printf "${GREEN}1. 安装国内堡塔 LTS 稳定版${NC}\n"
-    printf "${GREEN}2. 安装国内堡塔次新正式版${NC}\n"
-    printf "${GREEN}3. 安装国内堡塔最新正式版${NC}\n"
-    printf "${GREEN}4. 安装国际堡塔 aapanel 最新版${NC}\n"
+    printf "${YELLOW}====== 一键安装程序?======${NC}\n"
+    printf "${CYAN}--- 堆″非㈡澘 (BT Panel) ---${NC}\n"
+    printf "${GREEN}1. 安装国内堆″ LTS 稳定版?{NC}\n"
+    printf "${GREEN}2. 安装国内堆″娆℃新姝ｅ紡版?{NC}\n"
+    printf "${GREEN}3. 安装国内堆″用版版跳忕可${NC}\n"
+    printf "${GREEN}4. 安装国介际堆″ aapanel 用版本可${NC}\n"
     printf "${CYAN}--- 1Panel ---${NC}\n"
-    printf "${GREEN}5. 安装国内 1Panel 社区版${NC}\n"
-    printf "${GREEN}6. 安装国际 1Panel 社区版${NC}\n"
-    printf "${CYAN}--- 其他工具 ---${NC}\n"
-    printf "${GREEN}7. 安装 sing-box-yg 脚本${NC}\n"
-    printf "${GREEN}0. 返回主菜单${NC}\n"
+    printf "${GREEN}5. 安装国到内 1Panel 绀惧尯版?{NC}\n"
+    printf "${GREEN}6. 安装国介际 1Panel 绀惧尯版?{NC}\n"
+    printf "${CYAN}--- 具朵粬工具 ---${NC}\n"
+    printf "${GREEN}7. 安装 sing-box-yg 脚本${NC}\n"
+    printf "${GREEN}0. 返回主菜单?{NC}\n"
     printf "${CYAN}==============================================${NC}\n"
-    printf "${YELLOW}提示: 所有安装都将退出本工具箱以执行官方脚本。${NC}\n"
+    printf "${YELLOW}提示: 所用安安装呴能将出出本工具箱变互执行完樻柟脚本。?{NC}\n"
 
     read -p "请输入选项 [0-7]: " choice < /dev/tty
     case $choice in
@@ -46,8 +46,8 @@ function ltbx_run_installer() {
     local script_url="$1"
     local script_args="${2:-}"
 
-    printf "${GREEN}即将退出工具箱并开始执行外部安装脚本...${NC}\n"
-    printf "${YELLOW}脚本地址: ${script_url}${NC}\n"
+    printf "${GREEN}即将退出工具并跳跳始执执行外部安安装脚脚用?..${NC}\n"
+    printf "${YELLOW}脚本在板潃: ${script_url}${NC}\n"
     sleep 3; clear
 
     local temp_script="installer_temp.sh"
@@ -56,7 +56,7 @@ function ltbx_run_installer() {
     if [[ "$script_url" == *"github.com"* ]] || [[ "$script_url" == *"githubusercontent.com"* ]]; then
         if ! ltbx_download_with_auto_source "${script_url}" "${temp_script}"; then
             ltbx_log "ERROR" "Failed to download script with auto source selection"
-            printf "${RED}错误: 下载安装脚本失败。${NC}\n"
+            printf "${RED}错误: 下载安装脚本失败。?{NC}\n"
             ltbx_press_any_key
             return 1
         fi
@@ -64,20 +64,20 @@ function ltbx_run_installer() {
         if command -v curl &>/dev/null; then
             if ! curl -sSL "${script_url}" -o "${temp_script}" 2>/dev/null; then
                 ltbx_log "ERROR" "Failed to download script using curl"
-                printf "${RED}错误: 下载安装脚本失败。${NC}\n"
+                printf "${RED}错误: 下载安装脚本失败。?{NC}\n"
                 ltbx_press_any_key
                 return 1
             fi
         elif command -v wget &>/dev/null; then
             if ! wget -qO "${temp_script}" "${script_url}" 2>/dev/null; then
                 ltbx_log "ERROR" "Failed to download script using wget"
-                printf "${RED}错误: 下载安装脚本失败。${NC}\n"
+                printf "${RED}错误: 下载安装脚本失败。?{NC}\n"
                 ltbx_press_any_key
                 return 1
             fi
         else
             ltbx_log "ERROR" "Neither curl nor wget is available"
-            printf "${RED}错误: curl 或 wget 未安装。${NC}\n"
+            printf "${RED}错误: curl 或?wget 用安装呫?{NC}\n"
             ltbx_press_any_key
             return 1
         fi
@@ -85,7 +85,7 @@ function ltbx_run_installer() {
 
     if [[ ! -s "${temp_script}" ]]; then
         ltbx_log "ERROR" "Downloaded script is empty or does not exist"
-        printf "${RED}错误: 下载安装脚本失败。${NC}\n"
+        printf "${RED}错误: 下载安装脚本失败。?{NC}\n"
         rm -f "${temp_script}" 2>/dev/null || true
         ltbx_press_any_key
         return 1

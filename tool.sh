@@ -7,9 +7,9 @@ LTBX_LIB_DIR="/usr/local/lib/linux-toolbox"
 LTBX_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ -f "${LTBX_SCRIPT_DIR}/config.sh" ]]; then
-LTBX_LIB_DIR="${LTBX_SCRIPT_DIR}"
+    LTBX_LIB_DIR="${LTBX_SCRIPT_DIR}"
 elif [[ -n "${LTBX_LIB_DIR_OVERRIDE:-}" ]]; then
-LTBX_LIB_DIR="${LTBX_LIB_DIR_OVERRIDE}"
+    LTBX_LIB_DIR="${LTBX_LIB_DIR_OVERRIDE}"
 fi
 
 source "${LTBX_LIB_DIR}/config.sh"
@@ -31,37 +31,37 @@ function ltbx_load_lib() {
 declare -A LTBX_LOADED_LIBS
 
 function ltbx_show_help() {
-    printf "Linux 工具箱 v%s\n\n" "${LTBX_VERSION}"
-    printf "用法: %s [选项] [子命令]\n\n" "$(basename "$0")"
+    printf "Linux 工具箱v%s\n\n" "${LTBX_VERSION}"
+    printf "用法: %s [选项] [瀛愬懡浠\n\n" "$(basename "$0")"
     printf "选项:\n"
-    printf "  --help, -h          显示此帮助信息\n"
+    printf "  --help, -h          显示姝ゅ府鍔╀俊鎭痋n"
     printf "  --version, -v       显示版本信息\n"
     printf "  --doctor            检查系统环境\n"
     printf "  --non-interactive   非交互模式\n"
-    printf "  --debug             启用调试模式\n\n"
-    printf "子命令:\n"
+    printf "  --debug             鍚敤璋冭瘯妯″紡\n\n"
+    printf "子命令\n"
     printf "  system              系统管理工具\n"
     printf "  network             网络与安全工具\n"
-    printf "  install             一键安装程序\n"
+    printf "  install             一键安装程序\n"
     printf "  manage              工具箱管理\n\n"
 }
 
 function ltbx_show_version() {
-    printf "Linux 工具箱 v%s\n" "${LTBX_VERSION}"
+    printf "Linux 工具箱v%s\n" "${LTBX_VERSION}"
 }
 
 function ltbx_doctor() {
-    ltbx_log "INFO" "正在检查系统环境..."
+    ltbx_log "INFO" "正在检查系统环境.."
 
     printf "系统信息:\n"
     printf "  操作系统: %s %s (%s)\n" "${LTBX_OS_TYPE}" "${LTBX_OS_VERSION}" "${LTBX_OS_CODENAME}"
     printf "  用户权限: %s\n" "$(id -u)"
     printf "  TTY状态: %s\n" "已禁用检测"
 
-    printf "\n依赖检查:\n"
+    printf "\n依赖检查\n"
     for cmd in curl wget sudo systemctl; do
         if command -v "$cmd" &>/dev/null; then
-            printf "  ✓ %s\n" "$cmd"
+            printf "  ✗ %s\n" "$cmd"
         else
             printf "  ✗ %s (未找到)\n" "$cmd"
         fi
@@ -69,7 +69,7 @@ function ltbx_doctor() {
 
     printf "\n网络连接:\n"
     if curl -s --connect-timeout 5 https://www.baidu.com >/dev/null 2>&1; then
-        printf "  ✓ 网络连接正常\n"
+        printf "  ✗ 网络连接正常\n"
     else
         printf "  ✗ 网络连接异常\n"
     fi
@@ -106,7 +106,7 @@ LTBX_SUBCOMMAND="$1"
             shift
             ;;
         *)
-            ltbx_log "ERROR" "未知参数: $1"
+            ltbx_log "ERROR" "鏈煡参数: $1"
             ltbx_show_help
             exit 1
             ;;
@@ -145,11 +145,11 @@ function ltbx_main_menu() {
     while true; do
         ltbx_show_header
         printf "%s1. 系统管理工具%s\n" "${GREEN}" "${NC}"
-        printf "%s2. 网络与安全工具%s\n" "${GREEN}" "${NC}"
-        printf "%s3. 一键换源加速%s\n" "${GREEN}" "${NC}"
-        printf "%s4. 一键安装程序%s\n" "${GREEN}" "${NC}"
-        printf "%s5. 工具箱管理%s\n" "${GREEN}" "${NC}"
-        printf "%s0. 退出%s\n" "${RED}" "${NC}"
+        printf "%s2. 网络与安全工具s\n" "${GREEN}" "${NC}"
+        printf "%s3. 一键崲婧愬姞閫?s\n" "${GREEN}" "${NC}"
+        printf "%s4. 一键安装程序?s\n" "${GREEN}" "${NC}"
+        printf "%s5. 工具箱管理?s\n" "${GREEN}" "${NC}"
+        printf "%s0. 退出s\n" "${RED}" "${NC}"
         printf "%s==============================================%s\n" "${CYAN}" "${NC}"
 
         local choice
@@ -187,7 +187,7 @@ function ltbx_main_menu() {
                 exit 0
                 ;;
             *)
-                ltbx_log "WARN" "无效选项，请重试"
+                ltbx_log "WARN" "无效选项锛岃重试"
                 sleep 1
                 ;;
         esac
@@ -224,5 +224,3 @@ if [[ -n "${LTBX_SUBCOMMAND}" ]]; then
 else
     ltbx_main_menu
 fi
-]
-]
