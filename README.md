@@ -1,103 +1,128 @@
 # Linux 工具箱 (linux-toolbox)
 
-## 📁 文件结构
+一个功能强大的Linux系统管理工具箱，专为Debian系统运维设计，提供系统管理、网络配置、用户管理等全方位功能。
+
+## 🚀 快速安装
+
+### GitHub源（推荐）
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/tool.sh)
+```
+
+### Gitee源（国内用户）
+```bash
+bash <(curl -sL https://gitee.com/GamblerIX/linux-toolbox/raw/main/tool.sh)
+```
+
+安装完成后，直接执行 `tool` 命令即可启动工具箱。
+
+## 📁 项目结构
 
 ```
-.
-├── install.sh          # 独立的安装/更新脚本
-├── tool.sh             # 主执行文件 (交互式入口)
-├── lib_utils.sh        # 通用工具函数库
-├── lib_system.sh       # 系统管理与检测
-├── lib_network.sh      # 网络工具函数库
-├── lib_firewall.sh     # 防火墙管理函数库
-├── lib_software.sh     # 第三方软件安装函数库
+├── tool.sh             # 主执行文件
 ├── VERSION             # 版本信息文件
 └── README.md           # 项目说明文档
 ```
 
-## 🛠️ 功能模块
+## 🛠️ 功能特性
 
-### 工具箱安装
-
-#### 快速上手
-
-`bash <(curl -sL https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main/install.sh)`
-
-`bash <(curl -sL https://gitee.com/gamblerix/linux-toolbox/raw/main/install.sh)`
-
-#### install.sh 脚本
-
-- **功能**: 安装或更新工具箱
-- **执行步骤**：
-  1. 判断延迟最低的源是GitHub源还是Gitee源
-  2. 连接到低延迟的源中，通过curl逐个下载工具箱相关文件
-  3. 如果使用参数`--github`，则强制连接到GitHub源
-  4. 如果使用参数`--gitee`，则强制连接到Gitee源
-  5. 下载完成后，提示用户启动命令是`tool`
-
-安装成功后，直接执行 `tool` 命令即可启动工具箱。
-
-### lib_toolbox.sh 脚本
-
-- **更新工具箱**: 一键更新工具箱
-- **卸载工具箱**: 卸载工具箱相关
+### 工具箱管理
+- **智能安装**: 自动检测最快源进行安装/更新
+- **一键更新**: 快速更新到最新版本
+- **完全卸载**: 彻底清理工具箱文件
 - **版本查询**: 查看当前工具箱版本
-- **配置管理**: 工具箱配置的查看、编辑、备份、恢复等
 
-### lib_network.sh 脚本
+### 系统网络管理
 
-#### 网络速度测试
+#### 防火墙管理
+- 查看防火墙状态
+- 启用/禁用防火墙
+- 添加/删除端口规则
+- 支持UFW和firewalld
 
-- **speedtest-cli 测试**: 使用 speedtest-cli 进行网络速度测试
-- **Superbench 综合测试**: 集成性能测试，包含网络、CPU、内存等多项指标
-
-#### SSH 安全管理
-- **SSH 登录日志查看**: 查看成功/失败的SSH登录记录
-
-#### BBR 网络加速
-- **BBR 加速管理**: 启用/禁用 BBR 拥塞控制算法
+#### 网络优化
+- **网络速度测试**: 使用speedtest-cli进行带宽测试
+- **BBR加速**: 启用/禁用BBR拥塞控制算法
+- **SSH安全**: 查看SSH登录成功/失败记录
 
 #### 端口管理
-- **端口占用查看**: 列出所有已占用端口及对应进程
-- **进程终止**: 根据端口号终止占用进程
+- 查看所有端口占用情况
+- 根据端口号终止占用进程
+- 支持netstat和ss工具
 
-### lib_firewall.sh 脚本
-
-- **防火墙状态管理**: 启用/禁用防火墙，查看防火墙状态
-- **端口规则管理**: 添加/删除防火墙端口规则
-
-### lib_system.sh 脚本
+### 系统维护
 
 #### 系统清理
-- **垃圾文件清理**: 清理系统临时文件、日志文件、包缓存
+- 清理系统临时文件
+- 清理过期日志文件
+- 清理包管理器缓存
+- 自动移除无用软件包
 
 #### 用户管理
-- **用户账户管理**: 查看所有用户账户，创建、删除用户账户
-- **权限管理**: 用户组管理，一键添加指定用户到sudo组
+- 查看所有系统用户
+- 创建新用户账户
+- 删除指定用户
+- 添加用户到sudo组
 
 #### 软件源管理
-- **软件源更换**: 更换为阿里或腾讯或中科大或谷歌或Azure或AWS软件源
-- **核心命令**: 修改 `/etc/apt/sources.list` 或 `/etc/yum.repos.d/`
+- 支持多个国内外镜像源
+- 一键切换软件源
+- 自动备份原始配置
 
-### lib_software.sh 脚本
-
-> 确认安装后，将退出工具箱以确保安装命令执行成功
+### 第三方工具安装
 
 #### 宝塔面板
-  - LTS 稳定版: `bash <(curl -sSL https://download.bt.cn/install/install_lts.sh)`
-  - 最新正式版: `bash <(curl -sSL https://download.bt.cn/install/install_nearest.sh)`
-  - 开发版: `bash <(curl -sSL https://download.bt.cn/install/install_panel.sh)`
+- LTS稳定版
+- 最新正式版
+- 开发版
 
-#### 1Panel
-- 国内版: `bash <(curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh)`
-- 国际版: `bash <(curl -sSL https://resource.1panel.pro/quick_start.sh)`
+#### 1Panel面板
+- 国内版
+- 国际版
 
-#### sing-box-yg 代理工具
-- 指令: `bash <(curl -Ls https://raw.githubusercontent.com/yonggekkk/sing-box-yg/main/sb.sh)`
+#### 代理工具
+- sing-box-yg代理工具
+
+## 💻 系统要求
+
+- **支持系统**: Ubuntu 18.04+, Debian 9+, CentOS 7+
+- **权限要求**: 需要root权限运行
+- **网络要求**: 需要互联网连接进行安装和更新
+
+## 🔧 使用说明
+
+1. **首次安装**: 使用快速安装命令
+2. **启动工具箱**: 执行 `tool` 命令
+3. **选择功能**: 根据菜单提示选择相应功能
+4. **按需操作**: 根据具体需求进行系统管理
 
 ## ⚠️ 注意事项
 
-- 支持系统: Ubuntu 18.04+, Debian 9+, CentOS 7+
-- 中文编码问题，要求编码为utf-8
-- 转换符问题，Windows系统下，需要将脚本转换为unix格式，CRLF转换为LF
-- Windows作为开发系统时，注意与实际运行系统Debian系统的差别，Windows默认终端是Powershell，不支持`&&`，且无法直接执行脚本，只能通过`bash -n path`来验证脚本语法问题，且脚本路径引用中的 \ 注意要替换为 /
+- 请确保以root权限运行
+- 建议在执行重要操作前备份系统
+- 部分功能可能需要重启系统生效
+- 第三方工具安装会退出工具箱以确保安装成功
+
+## 🔄 更新日志
+
+### v1.0.0
+- 初始版本发布
+- 完整的系统管理功能
+- 网络配置和优化工具
+- 用户和权限管理
+- 第三方工具快速安装
+
+## 📞 技术支持
+
+如遇到问题或有功能建议，请通过以下方式联系：
+
+- GitHub Issues: [提交问题](https://github.com/GamblerIX/linux-toolbox/issues)
+- Gitee Issues: [提交问题](https://gitee.com/GamblerIX/linux-toolbox/issues)
+
+## 📄 开源协议
+
+本项目采用 MIT 协议开源，详情请查看 LICENSE 文件。
+
+---
+
+**Linux工具箱** - 让Linux系统管理更简单！
