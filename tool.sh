@@ -1,769 +1,758 @@
 #!/bin/bash
 
-VERSION="1.0.0"
-GITHUB_URL="https://raw.githubusercontent.com/GamblerIX/linux-toolbox/main"
-GITEE_URL="https://gitee.com/GamblerIX/linux-toolbox/raw/main"
+VERSION="1.0.1"
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
 
 check_root() {
-    if [ "$EUID" -ne 0 ]; then
-        echo "请使用root权限运行此脚本"
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "${RED}请使用root权限运行此脚本${NC}"
         exit 1
     fi
 }
 
-check_system() {
-    if [ -f /etc/debian_version ]; then
-        OS="debian"
-        PM="apt"
-    elif [ -f /etc/redhat-release ]; then
-        OS="centos"
-        PM="yum"
-    elif [ -f /etc/arch-release ]; then
-        OS="arch"
-        PM="pacman"
+get_system_info() {
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        OS=$NAME
+        VER=$VERSION_ID
+    elif type lsb_release >/dev/null 2>&1; then
+        OS=$(lsb_release -si)
+        VER=$(lsb_release -sr)
+    elif [[ -f /etc/redhat-release ]]; then
+        OS="CentOS"
+        VER=$(rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release))
     else
-        echo "不支持的操作系统"
-        exit 1
+        OS=$(uname -s)
+        VER=$(uname -r)
     fi
 }
 
-test_speed() {
-    local url=$1
-    local time=$(curl -o /dev/null -s -w "%{time_total}" --connect-timeout 3 "$url/VERSION" 2>/dev/null || echo "999")
-    echo $time
-}
-
-get_fastest_source() {
-    echo "正在测试源速度..."
-    github_time=$(test_speed $GITHUB_URL)
-    gitee_time=$(test_speed $GITEE_URL)
-    if awk "BEGIN{exit !($github_time < $gitee_time)}"; then
-        echo $GITHUB_URL
+install_package() {
+    local package=$1
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get update && apt-get install -y "$package"
+    elif command -v yum >/dev/null 2>&1; then
+        yum install -y "$package"
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y "$package"
     else
-        echo $GITEE_URL
-    fi
-}
-
-install_tool() {
-    echo "开始安装/更新工具箱..."
-    fastest_source=$(get_fastest_source)
-    echo "使用源: $fastest_source"
-    tmp_file=$(mktemp) || { echo "创建临时文件失败"; exit 1; }
-    trap 'rm -f "$tmp_file"' RETURN
-    if ! curl -fsSL "$fastest_source/tool.sh" -o "$tmp_file"; then
-        echo "下载失败，请检查网络连接"
-        exit 1
-    fi
-    if [ ! -s "$tmp_file" ]; then
-        echo "下载文件为空或失败"
-        exit 1
-    fi
-    if ! mv "$tmp_file" /usr/local/bin/tool; then
-        echo "移动文件失败"
-        exit 1
-    fi
-    if ! chmod +x /usr/local/bin/tool; then
-        echo "设置可执行权限失败"
-        exit 1
-    fi
-    echo "工具箱安装/更新完成！"
-    echo "启动命令: tool"
-    exit 0
-}
-
-update_tool() {
-    echo "正在更新工具箱..."
-    install_tool
-}
-
-uninstall_tool() {
-    echo "确定要卸载工具箱吗？(y/N)"
-    read -r confirm
-    if [[ $confirm =~ ^[Yy]$ ]]; then
-        rm -f /usr/local/bin/tool
-        echo "工具箱已卸载"
-    else
-        echo "取消卸载"
-    fi
-}
-
-show_version() {
-    echo "Linux工具箱 v$VERSION"
-}
-
-firewall_status() {
-    if command -v ufw >/dev/null 2>&1; then
-        ufw status
-    elif command -v firewall-cmd >/dev/null 2>&1; then
-        firewall-cmd --state
-    else
-        echo "未检测到防火墙管理工具"
-    fi
-}
-
-enable_firewall() {
-    if command -v ufw >/dev/null 2>&1; then
-        ufw --force enable
-        echo "防火墙已启用"
-    elif command -v firewall-cmd >/dev/null 2>&1; then
-        systemctl enable firewalld
-        systemctl start firewalld
-        echo "防火墙已启用"
-    else
-        echo "未检测到防火墙管理工具"
-    fi
-}
-
-disable_firewall() {
-    if command -v ufw >/dev/null 2>&1; then
-        ufw --force disable
-        echo "防火墙已禁用"
-    elif command -v firewall-cmd >/dev/null 2>&1; then
-        systemctl stop firewalld
-        systemctl disable firewalld
-        echo "防火墙已禁用"
-    else
-        echo "未检测到防火墙管理工具"
-    fi
-}
-
-add_port_rule() {
-    echo "请输入要开放的端口号:"
-    read -r port
-    echo "请选择协议: 1) TCP 2) UDP 3) 同时(TCP+UDP)"
-    read -r proto_choice
-    case "$proto_choice" in
-        1) proto="tcp" ;;
-        2) proto="udp" ;;
-        3) proto="both" ;;
-        *) echo "无效选择"; return ;;
-    esac
-    if [[ $port =~ ^[0-9]+$ ]] && [ $port -ge 1 ] && [ $port -le 65535 ]; then
-        if command -v ufw >/dev/null 2>&1; then
-            if [ "$proto" = "both" ]; then
-                ufw allow "$port/tcp" && ufw allow "$port/udp"
-            else
-                ufw allow "$port/$proto"
-            fi
-            echo "端口 $port 已开放"
-        elif command -v firewall-cmd >/dev/null 2>&1; then
-            if [ "$proto" = "both" ]; then
-                firewall-cmd --permanent --add-port="$port/tcp"
-                firewall-cmd --permanent --add-port="$port/udp"
-            else
-                firewall-cmd --permanent --add-port="$port/$proto"
-            fi
-            firewall-cmd --reload
-            echo "端口 $port 已开放"
-        else
-            echo "未检测到防火墙管理工具"
-        fi
-    else
-        echo "无效的端口号"
-    fi
-}
-
-remove_port_rule() {
-    echo "请输入要关闭的端口号:"
-    read -r port
-    echo "请选择协议: 1) TCP 2) UDP 3) 同时(TCP+UDP)"
-    read -r proto_choice
-    case "$proto_choice" in
-        1) proto="tcp" ;;
-        2) proto="udp" ;;
-        3) proto="both" ;;
-        *) echo "无效选择"; return ;;
-    esac
-    if [[ $port =~ ^[0-9]+$ ]] && [ $port -ge 1 ] && [ $port -le 65535 ]; then
-        if command -v ufw >/dev/null 2>&1; then
-            if [ "$proto" = "both" ]; then
-                ufw delete allow "$port/tcp" && ufw delete allow "$port/udp"
-            else
-                ufw delete allow "$port/$proto"
-            fi
-            echo "端口 $port 已关闭"
-        elif command -v firewall-cmd >/dev/null 2>&1; then
-            if [ "$proto" = "both" ]; then
-                firewall-cmd --permanent --remove-port="$port/tcp"
-                firewall-cmd --permanent --remove-port="$port/udp"
-            else
-                firewall-cmd --permanent --remove-port="$port/$proto"
-            fi
-            firewall-cmd --reload
-            echo "端口 $port 已关闭"
-        else
-            echo "未检测到防火墙管理工具"
-        fi
-    else
-        echo "无效的端口号"
-    fi
-}
-
-speed_test() {
-    if ! command -v speedtest-cli >/dev/null 2>&1; then
-        echo "正在安装 speedtest-cli..."
-        if [ "$OS" = "debian" ]; then
-            apt update && apt install -y speedtest-cli || { echo "speedtest-cli 安装失败"; return 1; }
-        elif [ "$OS" = "centos" ]; then
-            yum install -y epel-release && yum install -y speedtest-cli || { echo "speedtest-cli 安装失败"; return 1; }
-        elif [ "$OS" = "arch" ]; then
-            pacman -Sy --noconfirm speedtest-cli || { echo "speedtest-cli 安装失败"; return 1; }
-        fi
-    fi
-    if command -v speedtest-cli >/dev/null 2>&1; then
-        echo "正在进行网络速度测试..."
-        speedtest-cli
-    else
-        echo "speedtest-cli 安装失败"
-    fi
-}
-
-ssh_logs() {
-    local log_file=""
-    if [ -f /var/log/auth.log ]; then
-        log_file=/var/log/auth.log
-    elif [ -f /var/log/secure ]; then
-        log_file=/var/log/secure
-    else
-        echo "未找到SSH日志文件"
-        return
-    fi
-    echo "=== SSH 登录成功记录 ==="
-    grep "Accepted" "$log_file" 2>/dev/null | tail -20
-    echo ""
-    echo "=== SSH 登录失败记录 ==="
-    grep "Failed" "$log_file" 2>/dev/null | tail -20
-}
-
-enable_bbr() {
-    echo "正在启用 BBR 加速..."
-    local backup="/etc/sysctl.conf.bak.$(date +%s)"
-    cp /etc/sysctl.conf "$backup" 2>/dev/null
-    if grep -q '^net.core.default_qdisc=' /etc/sysctl.conf; then
-        sed -i 's|^net.core.default_qdisc=.*|net.core.default_qdisc=fq|' /etc/sysctl.conf
-    else
-        echo 'net.core.default_qdisc=fq' >> /etc/sysctl.conf
-    fi
-    if grep -q '^net.ipv4.tcp_congestion_control=' /etc/sysctl.conf; then
-        sed -i 's|^net.ipv4.tcp_congestion_control=.*|net.ipv4.tcp_congestion_control=bbr|' /etc/sysctl.conf
-    else
-        echo 'net.ipv4.tcp_congestion_control=bbr' >> /etc/sysctl.conf
-    fi
-    if ! sysctl -p; then
-        echo "应用内核参数失败，回滚配置"
-        [ -f "$backup" ] && cp "$backup" /etc/sysctl.conf && sysctl -p
+        echo -e "${RED}不支持的包管理器${NC}"
         return 1
     fi
-    echo "BBR 加速已启用"
 }
 
-disable_bbr() {
-    echo "正在禁用 BBR 加速..."
-    sed -i '/^net.core.default_qdisc=fq$/d' /etc/sysctl.conf
-    sed -i '/^net.ipv4.tcp_congestion_control=bbr$/d' /etc/sysctl.conf
-    if ! sysctl -p; then
-        echo "应用内核参数失败"
-        return 1
-    fi
-    echo "BBR 加速已禁用"
-}
-
-check_bbr() {
-    if sysctl net.ipv4.tcp_congestion_control | grep -q bbr; then
-        echo "BBR 加速已启用"
+check_service_status() {
+    local service=$1
+    if systemctl is-active --quiet "$service"; then
+        echo -e "${GREEN}运行中${NC}"
     else
-        echo "BBR 加速未启用"
-    fi
-}
-
-show_ports() {
-    echo "=== 端口占用情况 ==="
-    if command -v ss >/dev/null 2>&1; then
-        ss -tulpn | grep LISTEN || true
-    elif command -v netstat >/dev/null 2>&1; then
-        netstat -tulpn | grep LISTEN || true
-    else
-        echo "未找到网络工具"
-    fi
-}
-
-kill_port() {
-    echo "请输入要终止的端口号:"
-    read -r port
-    if [[ $port =~ ^[0-9]+$ ]] && [ $port -ge 1 ] && [ $port -le 65535 ]; then
-        if command -v lsof >/dev/null 2>&1; then
-            pid=$(lsof -ti:"$port")
-            if [ -n "$pid" ]; then
-                kill -9 $pid && echo "端口 $port 上的进程已终止" || echo "终止失败"
-            else
-                echo "端口 $port 未被占用"
-            fi
-        elif command -v fuser >/dev/null 2>&1; then
-            fuser -k "${port}/tcp" 2>/dev/null || fuser -k "${port}/udp" 2>/dev/null || echo "未找到占用该端口的进程"
-        else
-            echo "缺少 lsof/fuser 工具，无法终止端口进程"
-        fi
-    else
-        echo "无效的端口号"
-    fi
-}
-
-clean_system() {
-    echo "正在清理系统垃圾文件..."
-    if [ "$OS" = "debian" ]; then
-        apt autoremove -y
-        apt autoclean
-        apt clean
-    elif [ "$OS" = "centos" ]; then
-        yum autoremove -y
-        yum clean all
-    fi
-    
-    rm -rf /tmp/*
-    rm -rf /var/tmp/*
-    find /var/log -name "*.log" -type f -mtime +30 -delete
-    echo "系统清理完成"
-}
-
-show_users() {
-    echo "=== 系统用户列表 ==="
-    cut -d: -f1 /etc/passwd | sort
-}
-
-create_user() {
-    echo "请输入新用户名:"
-    read -r username
-    if [ -z "$username" ]; then
-        echo "用户名不能为空"
-        return
-    fi
-    if ! [[ $username =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
-        echo "用户名不合法"
-        return
-    fi
-    if id -u "$username" >/dev/null 2>&1; then
-        echo "用户 $username 已存在"
-        return
-    fi
-    if useradd -m -s /bin/bash "$username"; then
-        echo "请设置用户密码:"
-        passwd "$username"
-        echo "用户 $username 创建成功"
-    else
-        echo "用户创建失败"
-    fi
-}
-
-delete_user() {
-    echo "请输入要删除的用户名:"
-    read -r username
-    if [ -z "$username" ]; then
-        echo "用户名不能为空"
-        return
-    fi
-    if [ "$username" = "root" ]; then
-        echo "禁止删除root用户"
-        return
-    fi
-    if ! id -u "$username" >/dev/null 2>&1; then
-        echo "用户 $username 不存在"
-        return
-    fi
-    echo "确定要删除用户 $username 吗？(y/N)"
-    read -r confirm
-    if [[ $confirm =~ ^[Yy]$ ]]; then
-        if userdel -r "$username"; then
-            echo "用户 $username 已删除"
-        else
-            echo "删除失败"
-        fi
-    else
-        echo "取消删除"
-    fi
-}
-
-add_sudo() {
-    echo "请输入要添加到sudo组的用户名:"
-    read -r username
-    if [ -z "$username" ]; then
-        echo "用户名不能为空"
-        return
-    fi
-    if ! id -u "$username" >/dev/null 2>&1; then
-        echo "用户 $username 不存在"
-        return
-    fi
-    if getent group sudo >/dev/null 2>&1; then
-        usermod -aG sudo "$username" && echo "用户 $username 已添加到sudo组" || echo "操作失败"
-    elif getent group wheel >/dev/null 2>&1; then
-        usermod -aG wheel "$username" && echo "用户 $username 已添加到wheel组(具备sudo权限)" || echo "操作失败"
-    else
-        echo "系统未找到sudo或wheel组"
-    fi
-}
-
-change_source() {
-    if [ "$OS" != "debian" ] && [ "$OS" != "centos" ]; then
-        echo "此功能仅支持Debian/Ubuntu/CentOS系统"
-        return
-    fi
-    echo "请选择软件源:"
-    echo "1. 阿里云"
-    echo "2. 腾讯云"
-    echo "3. 中科大"
-    echo "4. 谷歌"
-    echo "5. Azure"
-    echo "6. AWS"
-    echo "7. 官方源"
-    read -r choice
-    if [ "$OS" = "debian" ]; then
-        [ -f /etc/os-release ] && . /etc/os-release
-        local id_l=${ID:-debian}
-        local backup="/etc/apt/sources.list.bak.$(date +%s)"
-        cp /etc/apt/sources.list "$backup" 2>/dev/null
-        if [ "$id_l" = "ubuntu" ]; then
-            case $choice in
-                1) main_mirror="http://mirrors.aliyun.com" ; sec_mirror="http://mirrors.aliyun.com" ;;
-                2) main_mirror="http://mirrors.cloud.tencent.com" ; sec_mirror="http://mirrors.cloud.tencent.com" ;;
-                3) main_mirror="http://mirrors.ustc.edu.cn" ; sec_mirror="http://mirrors.ustc.edu.cn" ;;
-                4) main_mirror="http://archive.ubuntu.com" ; sec_mirror="http://security.ubuntu.com" ;;
-                5) main_mirror="http://azure.archive.ubuntu.com" ; sec_mirror="http://azure.archive.ubuntu.com" ;;
-                6) main_mirror="http://us-east-1.ec2.archive.ubuntu.com" ; sec_mirror="http://us-east-1.ec2.archive.ubuntu.com" ;;
-                7) main_mirror="http://archive.ubuntu.com" ; sec_mirror="http://security.ubuntu.com" ;;
-                *) echo "无效选择"; return ;;
-            esac
-            sed -ri "s|https?://[^ ]*archive\.ubuntu\.com|$main_mirror|g" /etc/apt/sources.list
-            sed -ri "s|https?://[^ ]*security\.ubuntu\.com|$sec_mirror|g" /etc/apt/sources.list
-        else
-            case $choice in
-                1) main_mirror="http://mirrors.aliyun.com/debian" ; sec_mirror="http://mirrors.aliyun.com/debian-security" ;;
-                2) main_mirror="http://mirrors.cloud.tencent.com/debian" ; sec_mirror="http://mirrors.cloud.tencent.com/debian-security" ;;
-                3) main_mirror="http://mirrors.ustc.edu.cn/debian" ; sec_mirror="http://mirrors.ustc.edu.cn/debian-security" ;;
-                4|5|6) main_mirror="http://deb.debian.org/debian" ; sec_mirror="http://security.debian.org/debian-security" ;;
-                7) main_mirror="http://deb.debian.org/debian" ; sec_mirror="http://security.debian.org/debian-security" ;;
-                *) echo "无效选择"; return ;;
-            esac
-            sed -ri "s|https?://[^ ]*deb\.debian\.org/debian|$main_mirror|g" /etc/apt/sources.list
-            sed -ri "s|https?://[^ ]*security\.debian\.org/debian-security|$sec_mirror|g" /etc/apt/sources.list
-        fi
-        if ! apt update; then
-            echo "更新索引失败，回滚软件源"
-            [ -f "$backup" ] && cp "$backup" /etc/apt/sources.list && apt update
-        else
-            echo "软件源更新完成"
-        fi
-    elif [ "$OS" = "centos" ]; then
-        local ts=$(date +%s)
-        local repo_dir="/etc/yum.repos.d"
-        local backup_dir="${repo_dir}.bak.$ts"
-        cp -r "$repo_dir" "$backup_dir" 2>/dev/null
-        case $choice in
-            1) domain="mirrors.aliyun.com" ;;
-            2) domain="mirrors.cloud.tencent.com" ;;
-            3) domain="mirrors.ustc.edu.cn" ;;
-            4|5|6|7) domain="mirror.centos.org" ;;
-            *) echo "无效选择"; return ;;
-        esac
-        for f in "$repo_dir"/*.repo; do
-            [ -f "$f" ] || continue
-            sed -i 's/^mirrorlist=/#mirrorlist=/' "$f"
-            sed -i 's/^#baseurl=/baseurl=/' "$f"
-            sed -ri "s|^(baseurl=.*://)[^/]+|\1$domain|g" "$f"
-        done
-        if ! yum makecache -y; then
-            echo "生成缓存失败，回滚软件源"
-            rm -rf "$repo_dir" && cp -r "$backup_dir" "$repo_dir" && yum makecache -y
-        else
-            echo "软件源更新完成"
-        fi
-    fi
-}
-
-install_bt_panel() {
-    echo "请选择宝塔面板版本:"
-    echo "1. LTS 稳定版"
-    echo "2. 最新正式版"
-    echo "3. 开发版"
-    read -r choice
-    case $choice in
-        1)
-            echo "确定安装宝塔面板 LTS 稳定版吗？(y/N)"
-            read -r confirm
-            if [[ $confirm =~ ^[Yy]$ ]]; then
-                echo "正在安装宝塔面板 LTS 稳定版..."
-                bash <(curl -sSL https://download.bt.cn/install/install_lts.sh)
-                echo "安装脚本执行完成"
-            fi
-            ;;
-        2)
-            echo "确定安装宝塔面板最新正式版吗？(y/N)"
-            read -r confirm
-            if [[ $confirm =~ ^[Yy]$ ]]; then
-                echo "正在安装宝塔面板最新正式版..."
-                tmp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t btinst) || { echo "临时目录创建失败"; return 1; }
-                script="$tmp_dir/install_panel.sh"
-                if command -v curl >/dev/null 2>&1; then
-                    if ! curl -sSLo "$script" https://download.bt.cn/install/install_panel.sh; then
-                        echo "下载脚本失败"
-                        rm -rf "$tmp_dir"
-                        return 1
-                    fi
-                elif command -v wget >/dev/null 2>&1; then
-                    if ! wget -O "$script" https://download.bt.cn/install/install_panel.sh; then
-                        echo "下载脚本失败"
-                        rm -rf "$tmp_dir"
-                        return 1
-                    fi
-                else
-                    echo "未检测到curl或wget，无法下载"
-                    rm -rf "$tmp_dir"
-                    return 1
-                fi
-                if [ ! -s "$script" ]; then
-                    echo "下载的脚本为空或不存在"
-                    rm -rf "$tmp_dir"
-                    return 1
-                fi
-                chmod +x "$script" || true
-                if bash "$script" ed8484bec; then
-                    echo "安装脚本执行完成"
-                else
-                    echo "安装脚本执行失败"
-                    rm -rf "$tmp_dir"
-                    return 1
-                fi
-                rm -rf "$tmp_dir"
-            fi
-            ;;
-        3)
-            echo "确定安装宝塔面板开发版吗？(y/N)"
-            read -r confirm
-            if [[ $confirm =~ ^[Yy]$ ]]; then
-                echo "正在安装宝塔面板开发版..."
-                bash <(curl -sSL https://download.bt.cn/install/install_panel.sh)
-                echo "安装脚本执行完成"
-            fi
-            ;;
-        *)
-            echo "无效选择"
-            ;;
-    esac
-}
-
-install_1panel() {
-    echo "请选择1Panel版本:"
-    echo "1. 国内版"
-    echo "2. 国际版"
-    read -r choice
-    case $choice in
-        1)
-            echo "确定安装1Panel国内版吗？(y/N)"
-            read -r confirm
-            if [[ $confirm =~ ^[Yy]$ ]]; then
-                echo "正在安装1Panel国内版..."
-                bash <(curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh)
-                echo "安装脚本执行完成"
-            fi
-            ;;
-        2)
-            echo "确定安装1Panel国际版吗？(y/N)"
-            read -r confirm
-            if [[ $confirm =~ ^[Yy]$ ]]; then
-                echo "正在安装1Panel国际版..."
-                bash <(curl -sSL https://resource.1panel.pro/quick_start.sh)
-                echo "安装脚本执行完成"
-            fi
-            ;;
-        *)
-            echo "无效选择"
-            ;;
-    esac
-}
-
-install_singbox() {
-    echo "确定安装sing-box-yg代理工具吗？(y/N)"
-    read -r confirm
-    if [[ $confirm =~ ^[Yy]$ ]]; then
-        echo "正在安装sing-box-yg代理工具..."
-        bash <(curl -Ls https://raw.githubusercontent.com/yonggekkk/sing-box-yg/main/sb.sh)
-        echo "安装脚本执行完成"
+        echo -e "${RED}已停止${NC}"
     fi
 }
 
 firewall_menu() {
     while true; do
-        echo ""
-        echo "=== 防火墙管理 ==="
-        echo "1. 查看防火墙状态"
-        echo "2. 启用防火墙"
-        echo "3. 禁用防火墙"
-        echo "4. 添加端口规则"
-        echo "5. 删除端口规则"
-        echo "0. 返回上级菜单"
-        echo -n "请选择: "
+        clear
+        echo -e "${CYAN}${BOLD}=== 防火墙管理 ===${NC}"
+        echo -e "${WHITE}1.${NC} ${GREEN}查看防火墙状态${NC}"
+        echo -e "${WHITE}2.${NC} ${GREEN}启动防火墙${NC}"
+        echo -e "${WHITE}3.${NC} ${GREEN}停止防火墙${NC}"
+        echo -e "${WHITE}4.${NC} ${GREEN}重启防火墙${NC}"
+        echo -e "${WHITE}5.${NC} ${GREEN}查看防火墙规则${NC}"
+        echo -e "${WHITE}0.${NC} ${YELLOW}返回上级菜单${NC}"
+        echo -e "${BLUE}请选择操作:${NC} "
         read -r choice
         
         case $choice in
-            1) firewall_status ;;
-            2) enable_firewall ;;
-            3) disable_firewall ;;
-            4) add_port_rule ;;
-            5) remove_port_rule ;;
-            0) break ;;
-            *) echo "无效选择" ;;
+            1)
+                echo -e "${CYAN}防火墙状态:${NC}"
+                if command -v ufw >/dev/null 2>&1; then
+                    ufw status
+                elif command -v firewall-cmd >/dev/null 2>&1; then
+                    firewall-cmd --state
+                elif command -v iptables >/dev/null 2>&1; then
+                    iptables -L
+                else
+                    echo -e "${RED}未找到防火墙工具${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            2)
+                echo -e "${CYAN}启动防火墙...${NC}"
+                if command -v ufw >/dev/null 2>&1; then
+                    ufw --force enable
+                elif command -v firewall-cmd >/dev/null 2>&1; then
+                    systemctl start firewalld
+                    systemctl enable firewalld
+                elif command -v iptables >/dev/null 2>&1; then
+                    systemctl start iptables
+                    systemctl enable iptables
+                else
+                    echo -e "${RED}未找到防火墙工具${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            3)
+                echo -e "${CYAN}停止防火墙...${NC}"
+                if command -v ufw >/dev/null 2>&1; then
+                    ufw --force disable
+                elif command -v firewall-cmd >/dev/null 2>&1; then
+                    systemctl stop firewalld
+                    systemctl disable firewalld
+                elif command -v iptables >/dev/null 2>&1; then
+                    systemctl stop iptables
+                    systemctl disable iptables
+                else
+                    echo -e "${RED}未找到防火墙工具${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            4)
+                echo -e "${CYAN}重启防火墙...${NC}"
+                if command -v ufw >/dev/null 2>&1; then
+                    ufw --force disable
+                    ufw --force enable
+                elif command -v firewall-cmd >/dev/null 2>&1; then
+                    systemctl restart firewalld
+                elif command -v iptables >/dev/null 2>&1; then
+                    systemctl restart iptables
+                else
+                    echo -e "${RED}未找到防火墙工具${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            5)
+                echo -e "${CYAN}防火墙规则:${NC}"
+                if command -v ufw >/dev/null 2>&1; then
+                    ufw status numbered
+                elif command -v firewall-cmd >/dev/null 2>&1; then
+                    firewall-cmd --list-all
+                elif command -v iptables >/dev/null 2>&1; then
+                    iptables -L -n
+                else
+                    echo -e "${RED}未找到防火墙工具${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}无效选择${NC}"
+                read -r -p "按回车继续..." _
+                ;;
         esac
     done
 }
 
 network_menu() {
     while true; do
-        echo ""
-        echo "=== 网络管理 ==="
-        echo "1. 防火墙管理"
-        echo "2. 网络速度测试"
-        echo "3. SSH登录日志"
-        echo "4. BBR加速管理"
-        echo "5. 端口管理"
-        echo "0. 返回上级菜单"
-        echo -n "请选择: "
+        clear
+        echo -e "${CYAN}${BOLD}=== 网络管理 ===${NC}"
+        echo -e "${WHITE}1.${NC} ${GREEN}防火墙管理${NC}"
+        echo -e "${WHITE}2.${NC} ${GREEN}端口管理${NC}"
+        echo -e "${WHITE}3.${NC} ${GREEN}网络测试${NC}"
+        echo -e "${WHITE}4.${NC} ${GREEN}查看网络连接${NC}"
+        echo -e "${WHITE}5.${NC} ${GREEN}查看路由表${NC}"
+        echo -e "${WHITE}0.${NC} ${YELLOW}返回上级菜单${NC}"
+        echo -e "${BLUE}请选择操作:${NC} "
         read -r choice
         
         case $choice in
-            1) firewall_menu ;;
-            2) speed_test ;;
-            3) ssh_logs ;;
-            4) bbr_menu ;;
-            5) port_menu ;;
-            0) break ;;
-            *) echo "无效选择" ;;
+            1)
+                firewall_menu
+                ;;
+            2)
+                port_menu
+                ;;
+            3)
+                echo -e "${CYAN}网络测试:${NC}"
+                echo -e "${WHITE}1.${NC} ${GREEN}ping测试${NC}"
+                echo -e "${WHITE}2.${NC} ${GREEN}网速测试${NC}"
+                echo -e "${BLUE}请选择:${NC} "
+                read -r test_choice
+                case $test_choice in
+                    1)
+                        echo -e "${BLUE}请输入要ping的地址:${NC} "
+                        read -r ping_addr
+                        ping -c 4 "$ping_addr"
+                        ;;
+                    2)
+                        if ! command -v speedtest-cli >/dev/null 2>&1; then
+                            echo -e "${YELLOW}正在安装speedtest-cli...${NC}"
+                            if command -v apt-get >/dev/null 2>&1; then
+                                apt-get update && apt-get install -y speedtest-cli
+                            elif command -v yum >/dev/null 2>&1; then
+                                yum install -y epel-release
+                                yum install -y python-pip
+                                pip install speedtest-cli
+                            elif command -v dnf >/dev/null 2>&1; then
+                                dnf install -y python3-pip
+                                pip3 install speedtest-cli
+                            else
+                                echo -e "${RED}无法安装speedtest-cli${NC}"
+                                read -r -p "按回车继续..." _
+                                continue
+                            fi
+                        fi
+                        speedtest-cli
+                        ;;
+                esac
+                read -r -p "按回车继续..." _
+                ;;
+            4)
+                echo -e "${CYAN}网络连接:${NC}"
+                netstat -tuln
+                read -r -p "按回车继续..." _
+                ;;
+            5)
+                echo -e "${CYAN}路由表:${NC}"
+                route -n
+                read -r -p "按回车继续..." _
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}无效选择${NC}"
+                read -r -p "按回车继续..." _
+                ;;
         esac
     done
 }
 
 bbr_menu() {
     while true; do
-        echo ""
-        echo "=== BBR加速管理 ==="
-        echo "1. 查看BBR状态"
-        echo "2. 启用BBR加速"
-        echo "3. 禁用BBR加速"
-        echo "0. 返回上级菜单"
-        echo -n "请选择: "
+        clear
+        echo -e "${CYAN}${BOLD}=== BBR管理 ===${NC}"
+        echo -e "${WHITE}1.${NC} ${GREEN}查看BBR状态${NC}"
+        echo -e "${WHITE}2.${NC} ${GREEN}启用BBR${NC}"
+        echo -e "${WHITE}3.${NC} ${GREEN}禁用BBR${NC}"
+        echo -e "${WHITE}0.${NC} ${YELLOW}返回上级菜单${NC}"
+        echo -e "${BLUE}请选择操作:${NC} "
         read -r choice
         
         case $choice in
-            1) check_bbr ;;
-            2) enable_bbr ;;
-            3) disable_bbr ;;
-            0) break ;;
-            *) echo "无效选择" ;;
+            1)
+                echo -e "${CYAN}BBR状态:${NC}"
+                if lsmod | grep -q bbr; then
+                    echo -e "${GREEN}BBR已启用${NC}"
+                else
+                    echo -e "${RED}BBR未启用${NC}"
+                fi
+                echo -e "${CYAN}当前拥塞控制算法:${NC}"
+                sysctl net.ipv4.tcp_congestion_control
+                read -r -p "按回车继续..." _
+                ;;
+            2)
+                echo -e "${CYAN}启用BBR...${NC}"
+                if ! grep -q "net.core.default_qdisc=fq" /etc/sysctl.conf; then
+                    echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
+                fi
+                if ! grep -q "net.ipv4.tcp_congestion_control=bbr" /etc/sysctl.conf; then
+                    echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+                fi
+                sysctl -p
+                echo -e "${GREEN}BBR已启用${NC}"
+                read -r -p "按回车继续..." _
+                ;;
+            3)
+                echo -e "${CYAN}禁用BBR...${NC}"
+                sed -i '/net.core.default_qdisc=fq/d' /etc/sysctl.conf
+                sed -i '/net.ipv4.tcp_congestion_control=bbr/d' /etc/sysctl.conf
+                sysctl -p
+                echo -e "${GREEN}BBR已禁用${NC}"
+                read -r -p "按回车继续..." _
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}无效选择${NC}"
+                read -r -p "按回车继续..." _
+                ;;
         esac
     done
 }
 
+add_port_rule() {
+    echo -e "${BLUE}请输入端口号:${NC} "
+    read -r port
+    
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        echo -e "${RED}无效的端口号，请输入1-65535之间的数字${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}请选择协议:${NC}"
+    echo -e "${WHITE}1.${NC} ${GREEN}TCP${NC}"
+    echo -e "${WHITE}2.${NC} ${GREEN}UDP${NC}"
+    echo -e "${WHITE}3.${NC} ${GREEN}TCP和UDP${NC}"
+    echo -e "${BLUE}请选择:${NC} "
+    read -r protocol_choice
+    
+    case $protocol_choice in
+        1)
+            protocol="tcp"
+            ;;
+        2)
+            protocol="udp"
+            ;;
+        3)
+            protocol="both"
+            ;;
+        *)
+            echo -e "${RED}无效选择${NC}"
+            return 1
+            ;;
+    esac
+    
+    if command -v ufw >/dev/null 2>&1; then
+        if [ "$protocol" = "both" ]; then
+            ufw allow "$port"/tcp
+            ufw allow "$port"/udp
+        else
+            ufw allow "$port"/"$protocol"
+        fi
+    elif command -v firewall-cmd >/dev/null 2>&1; then
+        if [ "$protocol" = "both" ]; then
+            firewall-cmd --permanent --add-port="$port"/tcp
+            firewall-cmd --permanent --add-port="$port"/udp
+        else
+            firewall-cmd --permanent --add-port="$port"/"$protocol"
+        fi
+        firewall-cmd --reload
+    else
+        echo -e "${RED}未找到防火墙工具${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}端口规则添加成功${NC}"
+}
+
 port_menu() {
     while true; do
-        echo ""
-        echo "=== 端口管理 ==="
-        echo "1. 查看端口占用"
-        echo "2. 终止端口进程"
-        echo "0. 返回上级菜单"
-        echo -n "请选择: "
+        clear
+        echo -e "${CYAN}${BOLD}=== 端口管理 ===${NC}"
+        echo -e "${WHITE}1.${NC} ${GREEN}查看开放端口${NC}"
+        echo -e "${WHITE}2.${NC} ${GREEN}添加端口规则${NC}"
+        echo -e "${WHITE}3.${NC} ${GREEN}删除端口规则${NC}"
+        echo -e "${WHITE}0.${NC} ${YELLOW}返回上级菜单${NC}"
+        echo -e "${BLUE}请选择操作:${NC} "
         read -r choice
         
         case $choice in
-            1) show_ports ;;
-            2) kill_port ;;
-            0) break ;;
-            *) echo "无效选择" ;;
+            1)
+                echo -e "${CYAN}开放端口:${NC}"
+                if command -v ufw >/dev/null 2>&1; then
+                    ufw status numbered
+                elif command -v firewall-cmd >/dev/null 2>&1; then
+                    firewall-cmd --list-ports
+                else
+                    netstat -tuln
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            2)
+                add_port_rule
+                read -r -p "按回车继续..." _
+                ;;
+            3)
+                echo -e "${BLUE}请输入要删除的端口号:${NC} "
+                read -r port
+                if command -v ufw >/dev/null 2>&1; then
+                    ufw delete allow "$port"
+                elif command -v firewall-cmd >/dev/null 2>&1; then
+                    firewall-cmd --permanent --remove-port="$port"/tcp
+                    firewall-cmd --permanent --remove-port="$port"/udp
+                    firewall-cmd --reload
+                else
+                    echo -e "${RED}未找到防火墙工具${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}无效选择${NC}"
+                read -r -p "按回车继续..." _
+                ;;
         esac
     done
 }
 
 user_menu() {
     while true; do
-        echo ""
-        echo "=== 用户管理 ==="
-        echo "1. 查看所有用户"
-        echo "2. 创建用户"
-        echo "3. 删除用户"
-        echo "4. 添加用户到sudo组"
-        echo "0. 返回上级菜单"
-        echo -n "请选择: "
+        clear
+        echo -e "${CYAN}${BOLD}=== 用户管理 ===${NC}"
+        echo -e "${WHITE}1.${NC} ${GREEN}查看用户列表${NC}"
+        echo -e "${WHITE}2.${NC} ${GREEN}添加用户${NC}"
+        echo -e "${WHITE}3.${NC} ${GREEN}删除用户${NC}"
+        echo -e "${WHITE}4.${NC} ${GREEN}修改用户密码${NC}"
+        echo -e "${WHITE}5.${NC} ${GREEN}查看登录日志${NC}"
+        echo -e "${WHITE}0.${NC} ${YELLOW}返回上级菜单${NC}"
+        echo -e "${BLUE}请选择操作:${NC} "
         read -r choice
         
         case $choice in
-            1) show_users ;;
-            2) create_user ;;
-            3) delete_user ;;
-            4) add_sudo ;;
-            0) break ;;
-            *) echo "无效选择" ;;
+            1)
+                echo -e "${CYAN}用户列表:${NC}"
+                cat /etc/passwd | grep -E "/(bin/bash|bin/sh)$" | cut -d: -f1
+                read -r -p "按回车继续..." _
+                ;;
+            2)
+                echo -e "${BLUE}请输入用户名:${NC} "
+                read -r username
+                
+                if ! [[ "$username" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+                    echo -e "${RED}无效的用户名格式${NC}"
+                    read -r -p "按回车继续..." _
+                    continue
+                fi
+                
+                if id "$username" >/dev/null 2>&1; then
+                    echo -e "${RED}用户已存在${NC}"
+                    read -r -p "按回车继续..." _
+                    continue
+                fi
+                
+                useradd -m -s /bin/bash "$username"
+                echo -e "${BLUE}请设置用户密码:${NC}"
+                passwd "$username"
+                echo -e "${GREEN}用户创建成功${NC}"
+                read -r -p "按回车继续..." _
+                ;;
+            3)
+                echo -e "${BLUE}请输入要删除的用户名:${NC} "
+                read -r username
+                
+                if ! id "$username" >/dev/null 2>&1; then
+                    echo -e "${RED}用户不存在${NC}"
+                    read -r -p "按回车继续..." _
+                    continue
+                fi
+                
+                echo -e "${YELLOW}确认删除用户 $username 吗？(y/N):${NC} "
+                read -r confirm
+                if [[ $confirm =~ ^[Yy]$ ]]; then
+                    userdel -r "$username"
+                    echo -e "${GREEN}用户删除成功${NC}"
+                else
+                    echo -e "${YELLOW}操作已取消${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            4)
+                echo -e "${BLUE}请输入用户名:${NC} "
+                read -r username
+                
+                if ! id "$username" >/dev/null 2>&1; then
+                    echo -e "${RED}用户不存在${NC}"
+                    read -r -p "按回车继续..." _
+                    continue
+                fi
+                
+                passwd "$username"
+                read -r -p "按回车继续..." _
+                ;;
+            5)
+                echo -e "${CYAN}登录日志:${NC}"
+                if [[ -f /var/log/auth.log ]]; then
+                    tail -20 /var/log/auth.log | grep -E "(sshd|login)"
+                elif [[ -f /var/log/secure ]]; then
+                    tail -20 /var/log/secure | grep -E "(sshd|login)"
+                else
+                    echo -e "${RED}未找到登录日志文件${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}无效选择${NC}"
+                read -r -p "按回车继续..." _
+                ;;
         esac
     done
 }
 
 system_menu() {
     while true; do
-        echo ""
-        echo "=== 系统管理 ==="
-        echo "1. 网络管理"
-        echo "2. 系统清理"
-        echo "3. 用户管理"
-        echo "4. 软件源管理"
-        echo "0. 返回主菜单"
-        echo -n "请选择: "
+        clear
+        echo -e "${CYAN}${BOLD}=== 系统管理 ===${NC}"
+        echo -e "${WHITE}1.${NC} ${GREEN}用户管理${NC}"
+        echo -e "${WHITE}2.${NC} ${GREEN}网络管理${NC}"
+        echo -e "${WHITE}3.${NC} ${GREEN}BBR管理${NC}"
+        echo -e "${WHITE}4.${NC} ${GREEN}系统信息${NC}"
+        echo -e "${WHITE}5.${NC} ${GREEN}系统更新${NC}"
+        echo -e "${WHITE}6.${NC} ${GREEN}清理系统${NC}"
+        echo -e "${WHITE}0.${NC} ${YELLOW}返回主菜单${NC}"
+        echo -e "${BLUE}请选择操作:${NC} "
         read -r choice
         
         case $choice in
-            1) network_menu ;;
-            2) clean_system ;;
-            3) user_menu ;;
-            4) change_source ;;
-            0) break ;;
-            *) echo "无效选择" ;;
+            1)
+                user_menu
+                ;;
+            2)
+                network_menu
+                ;;
+            3)
+                bbr_menu
+                ;;
+            4)
+                echo -e "${CYAN}系统信息:${NC}"
+                get_system_info
+                echo -e "${WHITE}操作系统:${NC} $OS"
+                echo -e "${WHITE}版本:${NC} $VER"
+                echo -e "${WHITE}内核版本:${NC} $(uname -r)"
+                echo -e "${WHITE}CPU信息:${NC}"
+                grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2
+                echo -e "${WHITE}内存信息:${NC}"
+                free -h
+                echo -e "${WHITE}磁盘信息:${NC}"
+                df -h
+                read -r -p "按回车继续..." _
+                ;;
+            5)
+                echo -e "${CYAN}系统更新...${NC}"
+                if command -v apt-get >/dev/null 2>&1; then
+                    apt-get update && apt-get upgrade -y
+                elif command -v yum >/dev/null 2>&1; then
+                    yum update -y
+                elif command -v dnf >/dev/null 2>&1; then
+                    dnf update -y
+                else
+                    echo -e "${RED}不支持的包管理器${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            6)
+                echo -e "${CYAN}清理系统...${NC}"
+                if command -v apt-get >/dev/null 2>&1; then
+                    apt-get autoremove -y
+                    apt-get autoclean
+                elif command -v yum >/dev/null 2>&1; then
+                    yum autoremove -y
+                    yum clean all
+                elif command -v dnf >/dev/null 2>&1; then
+                    dnf autoremove -y
+                    dnf clean all
+                else
+                    echo -e "${RED}不支持的包管理器${NC}"
+                fi
+                echo -e "${GREEN}系统清理完成${NC}"
+                read -r -p "按回车继续..." _
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}无效选择${NC}"
+                read -r -p "按回车继续..." _
+                ;;
         esac
     done
+}
+
+install_bt_panel() {
+    echo -e "${CYAN}${BOLD}=== 宝塔面板安装 ===${NC}"
+    echo -e "${WHITE}1.${NC} ${GREEN}最新正式版${NC}"
+    echo -e "${WHITE}2.${NC} ${GREEN}最新测试版${NC}"
+    echo -e "${WHITE}0.${NC} ${YELLOW}返回上级菜单${NC}"
+    echo -e "${BLUE}请选择版本:${NC} "
+    read -r bt_choice
+    
+    case $bt_choice in
+        1)
+            echo -e "${CYAN}正在安装宝塔面板最新正式版...${NC}"
+            temp_dir=$(mktemp -d)
+            cd "$temp_dir" || { echo -e "${RED}创建临时目录失败${NC}"; return 1; }
+            
+            if command -v curl >/dev/null 2>&1; then
+                curl -sSO http://download.bt.cn/install/install_panel.sh
+            elif command -v wget >/dev/null 2>&1; then
+                wget -q http://download.bt.cn/install/install_panel.sh
+            else
+                echo -e "${RED}未找到curl或wget，无法下载安装脚本${NC}"
+                cd - >/dev/null
+                rm -rf "$temp_dir"
+                return 1
+            fi
+            
+            if [[ ! -f install_panel.sh ]] || [[ ! -s install_panel.sh ]]; then
+                echo -e "${RED}下载安装脚本失败${NC}"
+                cd - >/dev/null
+                rm -rf "$temp_dir"
+                return 1
+            fi
+            
+            chmod +x install_panel.sh
+            
+            if bash install_panel.sh; then
+                echo -e "${GREEN}宝塔面板安装完成${NC}"
+            else
+                echo -e "${RED}宝塔面板安装失败${NC}"
+            fi
+            
+            cd - >/dev/null
+            rm -rf "$temp_dir"
+            ;;
+        2)
+            echo -e "${CYAN}正在安装宝塔面板最新测试版...${NC}"
+            if command -v curl >/dev/null 2>&1; then
+                curl -sSO http://download.bt.cn/install/install_panel.sh && bash install_panel.sh
+            elif command -v wget >/dev/null 2>&1; then
+                wget -O install.sh http://download.bt.cn/install/install_panel.sh && bash install.sh
+            else
+                echo -e "${RED}未找到curl或wget${NC}"
+            fi
+            echo -e "${GREEN}安装脚本执行完成${NC}"
+            ;;
+        0)
+            return
+            ;;
+        *)
+            echo -e "${RED}无效选择${NC}"
+            ;;
+    esac
+}
+
+install_1panel() {
+    echo -e "${CYAN}正在安装1Panel面板...${NC}"
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh | bash
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- https://resource.fit2cloud.com/1panel/package/quick_start.sh | bash
+    else
+        echo -e "${RED}未找到curl或wget${NC}"
+    fi
+    echo -e "${GREEN}安装脚本执行完成${NC}"
+}
+
+install_singbox() {
+    echo -e "${CYAN}正在安装Sing-box...${NC}"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL https://sing-box.sagernet.org/install.sh | bash
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- https://sing-box.sagernet.org/install.sh | bash
+    else
+        echo -e "${RED}未找到curl或wget${NC}"
+    fi
+    echo -e "${GREEN}安装脚本执行完成${NC}"
 }
 
 third_party_menu() {
     while true; do
-        echo ""
-        echo "=== 第三方工具安装 ==="
-        echo "1. 宝塔面板"
-        echo "2. 1Panel"
-        echo "3. sing-box-yg代理工具"
-        echo "0. 返回主菜单"
-        echo -n "请选择: "
+        clear
+        echo -e "${CYAN}${BOLD}=== 第三方工具安装 ===${NC}"
+        echo -e "${WHITE}1.${NC} ${GREEN}宝塔面板${NC}"
+        echo -e "${WHITE}2.${NC} ${GREEN}1Panel面板${NC}"
+        echo -e "${WHITE}3.${NC} ${GREEN}Sing-box${NC}"
+        echo -e "${WHITE}0.${NC} ${YELLOW}返回主菜单${NC}"
+        echo -e "${BLUE}请选择要安装的工具:${NC} "
         read -r choice
         
         case $choice in
-            1) install_bt_panel ;;
-            2) install_1panel ;;
-            3) install_singbox ;;
-            0) break ;;
-            *) echo "无效选择" ;;
+            1)
+                install_bt_panel
+                read -r -p "按回车继续..." _
+                ;;
+            2)
+                install_1panel
+                read -r -p "按回车继续..." _
+                ;;
+            3)
+                install_singbox
+                read -r -p "按回车继续..." _
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}无效选择${NC}"
+                read -r -p "按回车继续..." _
+                ;;
         esac
     done
 }
 
+update_toolbox() {
+    echo -e "${CYAN}正在更新工具箱...${NC}"
+    if command -v curl >/dev/null 2>&1; then
+        curl -o /tmp/tool.sh https://raw.githubusercontent.com/your-repo/linux-toolbox/main/tool.sh
+    elif command -v wget >/dev/null 2>&1; then
+        wget -O /tmp/tool.sh https://raw.githubusercontent.com/your-repo/linux-toolbox/main/tool.sh
+    else
+        echo -e "${RED}未找到curl或wget${NC}"
+        return 1
+    fi
+    
+    if [[ -f /tmp/tool.sh ]]; then
+        chmod +x /tmp/tool.sh
+        mv /tmp/tool.sh "$0"
+        echo -e "${GREEN}工具箱更新完成${NC}"
+        echo -e "${YELLOW}请重新运行脚本以使用新版本${NC}"
+        exit 0
+    else
+        echo -e "${RED}更新失败${NC}"
+        return 1
+    fi
+}
+
 self_manage_menu() {
     while true; do
-        echo ""
-        echo "=== 工具箱管理 ==="
-        echo "1. 更新工具箱"
-        echo "2. 卸载工具箱"
-        echo "3. 查看版本"
-        echo "0. 返回主菜单"
-        echo -n "请选择: "
+        clear
+        echo -e "${CYAN}${BOLD}=== 工具箱管理 ===${NC}"
+        echo -e "${WHITE}1.${NC} ${GREEN}安装/更新工具箱${NC}"
+        echo -e "${WHITE}2.${NC} ${GREEN}查看版本信息${NC}"
+        echo -e "${WHITE}3.${NC} ${GREEN}卸载工具箱${NC}"
+        echo -e "${WHITE}0.${NC} ${YELLOW}返回主菜单${NC}"
+        echo -e "${BLUE}请选择操作:${NC} "
         read -r choice
         
         case $choice in
-            1) update_tool ;;
-            2) uninstall_tool ;;
-            3) show_version ;;
-            0) break ;;
-            *) echo "无效选择" ;;
+            1)
+                update_toolbox
+                read -r -p "按回车继续..." _
+                ;;
+            2)
+                echo -e "${CYAN}版本信息:${NC}"
+                echo -e "${WHITE}工具箱版本:${NC} $VERSION"
+                echo -e "${WHITE}脚本路径:${NC} $0"
+                read -r -p "按回车继续..." _
+                ;;
+            3)
+                echo -e "${YELLOW}确认卸载工具箱吗？(y/N):${NC} "
+                read -r confirm
+                if [[ $confirm =~ ^[Yy]$ ]]; then
+                    rm -f "$0"
+                    echo -e "${GREEN}工具箱已卸载${NC}"
+                    exit 0
+                else
+                    echo -e "${YELLOW}操作已取消${NC}"
+                fi
+                read -r -p "按回车继续..." _
+                ;;
+            0)
+                break
+                ;;
+            *)
+                echo -e "${RED}无效选择${NC}"
+                read -r -p "按回车继续..." _
+                ;;
         esac
     done
 }
@@ -771,29 +760,40 @@ self_manage_menu() {
 main_menu() {
     while true; do
         clear
-        echo "=========================================="
-        echo "           Linux 工具箱 v$VERSION"
-        echo "=========================================="
-        echo "1. 安装/更新工具箱"
-        echo "2. 工具箱管理"
-        echo "3. 系统管理"
-        echo "4. 第三方工具安装"
-        echo "0. 退出"
-        echo "=========================================="
-        echo -n "请选择功能: "
+        echo -e "${PURPLE}${BOLD}╔══════════════════════════════════════╗${NC}"
+        echo -e "${PURPLE}${BOLD}║           Linux 服务器工具箱         ║${NC}"
+        echo -e "${PURPLE}${BOLD}║              版本: $VERSION              ║${NC}"
+        echo -e "${PURPLE}${BOLD}╚══════════════════════════════════════╝${NC}"
+        echo
+        echo -e "${WHITE}1.${NC} ${GREEN}工具箱管理${NC}"
+        echo -e "${WHITE}2.${NC} ${GREEN}系统管理${NC}"
+        echo -e "${WHITE}3.${NC} ${GREEN}第三方工具安装${NC}"
+        echo -e "${WHITE}0.${NC} ${RED}退出${NC}"
+        echo
+        echo -e "${BLUE}请选择操作:${NC} "
         read -r choice
         
         case $choice in
-            1) install_tool ;;
-            2) self_manage_menu ;;
-            3) system_menu ;;
-            4) third_party_menu ;;
-            0) echo "感谢使用！"; exit 0 ;;
-            *) echo "无效选择，请重新输入" ;;
+            1)
+                self_manage_menu
+                ;;
+            2)
+                system_menu
+                ;;
+            3)
+                third_party_menu
+                ;;
+            0)
+                echo -e "${GREEN}感谢使用Linux服务器工具箱！${NC}"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}无效选择${NC}"
+                read -r -p "按回车继续..." _
+                ;;
         esac
     done
 }
 
 check_root
-check_system
 main_menu
